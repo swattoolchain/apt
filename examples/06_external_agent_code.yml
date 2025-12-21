@@ -1,0 +1,55 @@
+# Example 6: External Agent Code Files
+#
+# Use Case: Using external code files instead of inline code
+# Tools: Remote Agents with external scripts
+# Demonstrates: Multi-language support, code reusability
+#
+# Prerequisites:
+# 1. Deploy agent:
+#    aptcli agent create --name prod-agent --type docker --mode emit
+#    aptcli agent deploy --name prod-agent --target user@server.com --type docker
+#
+# 2. Set environment variable:
+#    export PROD_AGENT_ENDPOINT="http://server.com:9090"
+#    export PROD_AGENT_TOKEN="your-token"
+
+test_info:
+  test_suite_name: "External Agent Code Files"
+  description: "Demonstrates using external code files with agents"
+  version: "1.0"
+
+agents:
+  prod-agent:
+    endpoint: "${PROD_AGENT_ENDPOINT}"
+    auth_token: "${PROD_AGENT_TOKEN}"
+    timeout: 60
+
+workflows:
+  external_code_demo:
+    iterations: 3
+    steps:
+      # Python script - Health check
+      - name: health_check
+        action: agent_execute
+        agent: prod-agent
+        code_file: "agent_scripts/health_check.py"
+        language: python
+      
+      # Python script - Database check
+      - name: database_check
+        action: agent_execute
+        agent: prod-agent
+        code_file: "agent_scripts/database_check.py"
+        language: python
+      
+      # Shell script - System metrics
+      - name: system_metrics
+        action: agent_execute
+        agent: prod-agent
+        code_file: "agent_scripts/system_metrics.sh"
+        language: shell
+
+reporting:
+  output_dir: "performance_results/06_external_code"
+  include:
+    - workflows

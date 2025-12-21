@@ -1,0 +1,159 @@
+# APT Extensions Configuration
+# Define JMeter plugins and their configurations here
+# Test files can reference these plugins by name
+
+jmeter_plugins:
+  # gRPC Plugin Configuration
+  grpc:
+    class_name: "vn.zalopay.benchmark.GRPCClientSampler"
+    gui_class: "vn.zalopay.benchmark.gui.GRPCClientSamplerGui"
+    description: "gRPC load testing plugin"
+    required_jars:
+      - "jmeter-grpc-request-1.2.4.jar"
+    install_url: "https://github.com/zalopay-oss/jmeter-grpc-plugin/releases"
+    properties:
+      host_port:
+        type: "string"
+        required: true
+        description: "gRPC server host:port"
+      proto_folder:
+        type: "string"
+        required: true
+        description: "Path to proto files directory"
+      lib_folder:
+        type: "string"
+        required: false
+        default: "lib"
+        description: "Path to compiled proto libraries"
+      full_method:
+        type: "string"
+        required: true
+        description: "Full method name (e.g., UserService/GetUser)"
+      request_json:
+        type: "string"
+        required: true
+        description: "Request payload in JSON format"
+      metadata:
+        type: "string"
+        required: false
+        default: "{}"
+        description: "gRPC metadata in JSON format"
+      deadline:
+        type: "integer"
+        required: false
+        default: 10000
+        description: "Request deadline in milliseconds"
+      tls:
+        type: "boolean"
+        required: false
+        default: false
+        description: "Enable TLS"
+
+  # MQTT Plugin Configuration
+  mqtt:
+    class_name: "net.xmeter.samplers.PubSampler"
+    gui_class: "net.xmeter.gui.PubSamplerUI"
+    description: "MQTT protocol testing plugin"
+    required_jars:
+      - "mqtt-xmeter-2.0.2-jar-with-dependencies.jar"
+    install_url: "https://github.com/emqx/mqtt-jmeter"
+    properties:
+      mqtt.server:
+        type: "string"
+        required: true
+        description: "MQTT broker URL (e.g., tcp://localhost:1883)"
+      mqtt.client_id:
+        type: "string"
+        required: true
+        description: "MQTT client ID"
+      mqtt.topic:
+        type: "string"
+        required: true
+        description: "MQTT topic to publish to"
+      mqtt.qos:
+        type: "integer"
+        required: false
+        default: 0
+        description: "Quality of Service (0, 1, or 2)"
+      mqtt.message:
+        type: "string"
+        required: true
+        description: "Message payload"
+      mqtt.retained:
+        type: "boolean"
+        required: false
+        default: false
+        description: "Retain message flag"
+
+  # WebSocket Plugin Configuration
+  websocket:
+    class_name: "eu.luminis.jmeter.wssampler.RequestResponseWebSocketSampler"
+    gui_class: "eu.luminis.jmeter.wssampler.RequestResponseWebSocketSamplerGui"
+    description: "WebSocket protocol testing plugin"
+    required_jars:
+      - "jmeter-websocket-samplers-1.2.8.jar"
+    install_url: "https://bitbucket.org/pjtr/jmeter-websocket-samplers"
+    properties:
+      server_url:
+        type: "string"
+        required: true
+        description: "WebSocket server URL (e.g., ws://localhost:8080/ws)"
+      request_data:
+        type: "string"
+        required: true
+        description: "Data to send to WebSocket server"
+      response_pattern:
+        type: "string"
+        required: false
+        description: "Expected response pattern (regex)"
+      connection_timeout:
+        type: "integer"
+        required: false
+        default: 20000
+        description: "Connection timeout in milliseconds"
+      read_timeout:
+        type: "integer"
+        required: false
+        default: 6000
+        description: "Read timeout in milliseconds"
+
+  # Kafka Plugin Configuration
+  kafka:
+    class_name: "com.github.rahulsinghai.jmeter.backendlistener.kafka.KafkaBackendClient"
+    gui_class: "com.github.rahulsinghai.jmeter.backendlistener.kafka.KafkaBackendClientGui"
+    description: "Apache Kafka testing plugin"
+    required_jars:
+      - "jmeter-kafka-plugin.jar"
+    install_url: "https://github.com/rahulsinghai/jmeter-backend-listener-kafka"
+    properties:
+      bootstrap.servers:
+        type: "string"
+        required: true
+        description: "Kafka bootstrap servers"
+      topic:
+        type: "string"
+        required: true
+        description: "Kafka topic"
+      key:
+        type: "string"
+        required: false
+        description: "Message key"
+      message:
+        type: "string"
+        required: true
+        description: "Message payload"
+      compression.type:
+        type: "string"
+        required: false
+        default: "none"
+        description: "Compression type (none, gzip, snappy, lz4)"
+
+# Plugin installation paths
+plugin_paths:
+  jmeter_home: "/opt/homebrew/Cellar/jmeter/5.6.3/libexec"
+  lib_ext: "/opt/homebrew/Cellar/jmeter/5.6.3/libexec/lib/ext"
+
+# Auto-install plugins (if enabled)
+auto_install:
+  enabled: false
+  download_missing: false

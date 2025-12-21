@@ -1,0 +1,81 @@
+# Example 3: Multi-Region Distributed Test
+#
+# Use Case: Test API latency from multiple geographic regions
+# Tools: Remote Agents
+# Demonstrates: Distributed testing with agent_execute
+#
+# Prerequisites:
+# 1. Deploy agents in different regions:
+#    aptcli agent create --name us-east --type docker --mode emit
+#    aptcli agent deploy --name us-east --target user@us-server.com --type docker
+#
+# 2. Set environment variables:
+#    export US_EAST_ENDPOINT="http://us-server.com:9090"
+#    export US_EAST_TOKEN="your-token"
+#    export EU_WEST_ENDPOINT="http://eu-server.com:9090"
+#    export EU_WEST_TOKEN="your-token"
+
+test_info:
+  test_suite_name: "Multi-Region Latency Test"
+  description: "Test API performance from multiple geographic locations"
+  version: "1.0"
+
+# Define remote agents
+agents:
+  us-east-agent:
+    endpoint: "${US_EAST_ENDPOINT}"
+    auth_token: "${US_EAST_TOKEN}"
+    timeout: 60
+  
+  eu-west-agent:
+    endpoint: "${EU_WEST_ENDPOINT}"
+    auth_token: "${EU_WEST_TOKEN}"
+    timeout: 60
+
+# Test from multiple regions
+workflows:
+  global_latency_test:
+    iterations: 10
+    steps:
+      # Test from US East
+      - name: test_from_us_east
+        action: agent_execute
+        agent: us-east-agent
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get("https://api.example.com/health")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "region": "us-east",
+            "timestamp": time.time()
+          }
+      
+      # Test from EU West
+      - name: test_from_eu_west
+        action: agent_execute
+        agent: eu-west-agent
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get("https://api.example.com/health")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "region": "eu-west",
+            "timestamp": time.time()
+          }
+
+reporting:
+  output_dir: "performance_results/03_multi_region"
+  include:
+    - workflows

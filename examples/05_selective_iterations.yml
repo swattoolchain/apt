@@ -1,0 +1,47 @@
+# Example 5: Selective Step Iterations (Stress Testing)
+#
+# Use Case: Stress test specific workflow steps while others run once
+# Tools: Custom Workflows
+# Demonstrates: Per-step iteration control, performance degradation detection
+
+test_info:
+  test_suite_name: "Selective Step Iterations"
+  description: "Stress test add-to-cart while login/checkout run once"
+  version: "1.0"
+
+workflows:
+  cart_stress_test:
+    iterations: 5  # Overall workflow iterations
+    steps:
+      # Login once per workflow iteration
+      - name: user_login
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/users/1"
+        method: GET
+        iterations: 1
+      
+      # Stress test add-to-cart (100 times per workflow iteration)
+      - name: add_to_cart
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: POST
+        body:
+          title: "Product"
+          userId: 1
+        iterations: 100
+        iteration_config:
+          delay_between: 0.1
+          fail_on_error: false
+          track_individual: true
+      
+      # Checkout once per workflow iteration
+      - name: checkout
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts/1"
+        method: GET
+        iterations: 1
+
+reporting:
+  output_dir: "performance_results/05_selective_iterations"
+  include:
+    - workflows

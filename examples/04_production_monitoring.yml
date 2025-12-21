@@ -1,0 +1,115 @@
+# Example 4: Production Monitoring with Remote Agent
+#
+# Use Case: Monitor production application from internal network
+# Tools: Remote Agent (deployed on production network)
+# Demonstrates: Production monitoring, database queries, internal API checks
+#
+# Prerequisites:
+# 1. Deploy agent on production network:
+#    aptcli agent create --name prod-monitor --type docker --mode emit --emit-target influxdb://metrics.company.com:8086/prod
+#    aptcli agent deploy --name prod-monitor --target admin@prod-server.com --type docker
+#
+# 2. Set environment variable:
+#    export PROD_MONITOR_ENDPOINT="http://prod-server.com:9090"
+#    export PROD_MONITOR_TOKEN="your-token"
+
+test_info:
+  test_suite_name: "Production Monitoring"
+  description: "Monitor production application health and performance"
+  version: "1.0"
+
+agents:
+  prod-monitor:
+    endpoint: "${PROD_MONITOR_ENDPOINT}"
+    auth_token: "${PROD_MONITOR_TOKEN}"
+    timeout: 120
+
+workflows:
+  production_health_check:
+    iterations: 1
+    steps:
+      # Check internal API health
+      - name: internal_api_health
+        action: agent_execute
+        agent: prod-monitor
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get("http://localhost:8080/internal/health")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "healthy": response.status_code == 200,
+            "check_type": "internal_api"
+          }
+      
+      # Check database connectivity
+      - name: database_connectivity
+        action: agent_execute
+        agent: prod-monitor
+        code: |
+          import time
+          # Note: Install psycopg2 on agent if using PostgreSQL
+          # import psycopg2
+          
+          start = time.time()
+          # conn = psycopg2.connect("dbname=prod user=readonly host=localhost")
+          # cursor = conn.cursor()
+          # cursor.execute("SELECT 1")
+          # cursor.fetchone()
+          # conn.close()
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "connected": True,
+            "check_type": "database"
+          }
+      
+      # Check Redis cache
+      - name: redis_connectivity
+        action: agent_execute
+        agent: prod-monitor
+        code: |
+          import time
+          # Note: Install redis on agent if using Redis
+          # import redis
+          
+          start = time.time()
+          # r = redis.Redis(host='localhost', port=6379, db=0)
+          # r.ping()
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "connected": True,
+            "check_type": "redis"
+          }
+      
+      # Check external API dependency
+      - name: external_api_check
+        action: agent_execute
+        agent: prod-monitor
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get("https://api.external-service.com/health")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "healthy": response.status_code == 200,
+            "check_type": "external_api"
+          }
+
+reporting:
+  output_dir: "performance_results/04_production_monitoring"
+  include:
+    - workflows

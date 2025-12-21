@@ -1,0 +1,29 @@
+# Example 1: Simple API Performance Test
+#
+# Use Case: Basic API endpoint performance testing
+# Tools: k6
+# Duration: 30 seconds
+# VUs: 10
+
+test_info:
+  test_suite_name: "Simple API Performance Test"
+  description: "Basic k6 test for API endpoint performance"
+  version: "1.0"
+
+k6_tests:
+  api_health_check:
+    scenarios:
+      - name: "GET /posts"
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: "GET"
+    
+    options:
+      vus: 10
+      duration: "30s"
+      thresholds:
+        http_req_duration: ["p(95)<500"]
+
+reporting:
+  output_dir: "performance_results/01_simple_api"
+  include:
+    - k6

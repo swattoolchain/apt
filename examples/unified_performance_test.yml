@@ -1,0 +1,131 @@
+# Complete Example: k6 + JMeter + Custom Workflow
+# Demonstrates all three testing approaches in one unified test
+
+test_info:
+  test_suite_name: "Complete Performance Test Suite"
+  test_suite_type: "unified"
+  description: "Combines k6 load testing, JMeter stress testing, and custom workflow performance measurement"
+  tags: ["unified", "comprehensive", "all-tools"]
+
+# 1. k6 Load Test - API Performance
+k6_tests:
+  api_load_test:
+    scenarios:
+      - name: "User API Load Test"
+        url: "https://jsonplaceholder.typicode.com/users"
+        method: "GET"
+      
+      - name: "Posts API Load Test"
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: "GET"
+    
+    options:
+      vus: 10
+      duration: "30s"
+
+# 2. JMeter Stress Test - High Concurrency
+jmeter_tests:
+  api_stress_test:
+    scenarios:
+      - name: "Comments API Stress"
+        url: "https://jsonplaceholder.typicode.com/comments"
+        method: "GET"
+    
+    thread_group_config:
+      num_threads: 20
+      ramp_time: 5
+      duration: 30
+
+# 3. Custom Workflow - Multi-Step Performance
+workflows:
+  user_journey_workflow:
+    name: "Complete User Journey"
+    description: "Measures end-to-end user workflow with selective iterations"
+    iterations: 2
+    concurrent_users: 1
+    
+    steps:
+      # Step 1: Login (API call)
+      - name: "user_login"
+        action: "api_call"
+        url: "https://jsonplaceholder.typicode.com/users/1"
+        method: "GET"
+        iterations: 1
+      
+      # Step 2: Browse content (k6 test - NEW!)
+      - name: "browse_posts_k6"
+        action: "k6_test"
+        iterations: 1
+        k6_config:
+          scenarios:
+            - name: "Browse Posts"
+              url: "https://jsonplaceholder.typicode.com/posts"
+              method: "GET"
+          options:
+            vus: 5
+            duration: "10s"
+      
+      # Step 3: Fetch multiple items (API calls with iterations)
+      - name: "fetch_user_posts"
+        action: "api_call"
+        url: "https://jsonplaceholder.typicode.com/posts?userId=1"
+        method: "GET"
+        iterations: 20  # Fetch 20 times
+        iteration_config:
+          delay_between: 0.1
+          track_individual: true
+      
+      # Step 4: Stress test comments (JMeter - NEW!)
+      - name: "stress_test_comments"
+        action: "jmeter_test"
+        iterations: 1
+        jmeter_config:
+          scenarios:
+            - name: "Comment Load"
+              url: "https://jsonplaceholder.typicode.com/comments?postId=1"
+              method: "GET"
+          thread_group_config:
+            num_threads: 10
+            duration: 10
+      
+      # Step 5: Create comment (API call)
+      - name: "create_comment"
+        action: "api_call"
+        url: "https://jsonplaceholder.typicode.com/comments"
+        method: "POST"
+        iterations: 1
+        body:
+          postId: 1
+          name: "Test Comment"
+          email: "test@example.com"
+          body: "Workflow test comment"
+    
+    aggregator: "selective_iteration_aggregator"
+
+# Reporting - Unified HTML Report
+reporting:
+  unified_report: true
+  output_dir: "performance_results/complete_unified_test"
+  include_all_metrics: true
+
+# Expected Unified Report Structure:
+# 
+# Tabs:
+# - k6 (1 test): api_load_test
+# - JMeter (1 test): api_stress_test  
+# - Workflows (1 workflow): user_journey_workflow
+#
+# Workflow Tab Shows:
+# - 2 workflow executions (iterations: 2)
+# - Each workflow expandable to show:
+#   * user_login: 1 iteration
+#   * browse_posts_k6: 1 k6 test execution
+#   * fetch_user_posts: 20 iterations
+#   * stress_test_comments: 1 JMeter test
+#   * create_comment: 1 iteration
+#
+# Benefits:
+# - Single test file
+# - All tools in one execution
+# - Unified HTML report
+# - Complete performance picture

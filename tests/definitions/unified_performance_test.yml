@@ -1,0 +1,238 @@
+# Unified Performance Test Suite
+# This YAML file runs UI tests (Playwright), API tests (k6), and API tests (JMeter)
+# and generates a single unified report
+
+test_info:
+  test_suite_name: "Unified Multi-Tool Performance Test"
+  test_suite_type: "unified"  # Special type for multi-tool testing
+  description: "Complete performance testing using Playwright, k6, and JMeter with unified reporting"
+
+# ========================================
+# UI TESTS (Playwright)
+# ========================================
+ui_tests:
+  homepage_load: #smoke, p1
+    - measure_page_load:
+        url: "https://config-test.hub.quvia.ai"
+        wait_until: "networkidle"
+        iterations: 2
+        performance_config:
+          ui:
+            concurrent_users: 3
+            headless: true
+            screenshots: false
+
+  login_workflow: #smoke, p1
+    - measure_workflow:
+        name: "login_flow"
+        iterations: 3                    # Workflow-level iterations
+        performance_config:
+          ui:
+            concurrent_users: 2
+            headless: true
+        steps:
+          - name: "navigate"
+            action: "navigate"
+            url: "https://config-test.hub.quvia.ai"
+            iterations: 1                # Action-level iterations (optional)
+          
+          - name: "fill_username"
+            action: "fill"
+            selector: 'input[name="username"]'
+            value: "admin"
+            iterations: 1
+          
+          - name: "fill_password"
+            action: "fill"
+            selector: 'input[name="password"]'
+            value: "Neuron123*"
+            iterations: 1
+          
+          - name: "click_login"
+            action: "click"
+            selector: 'button[type="submit"]'
+            iterations: 2                # Can repeat specific actions
+
+# ========================================
+# API TESTS (k6)
+# ========================================
+k6_tests:
+  api_health_check: #smoke, p1
+    tool: "k6"
+    scenarios:
+      - name: "Health Check API"
+        url: "https://qa.hub.quvia.ai/neuron-api/health"
+        method: "GET"
+        headers:
+          Content-Type: "application/json"
+    
+    options:
+      vus: 10              # 10 virtual users
+      duration: "30s"      # Run for 30 seconds
+      thresholds:
+        http_req_duration: ["p(95)<500"]    # 95% under 500ms
+        http_req_failed: ["rate<0.01"]      # Error rate < 1%
+
+  api_visualization: #load, p2
+    tool: "k6"
+    scenarios:
+      - name: "Flights Aggregation API"
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/flights/getAgg/v2"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+        body:
+          timeRange:
+            fromTimestamp: "2024-01-01T00:00:00Z"
+            toTimestamp: "2024-01-02T00:00:00Z"
+      
+      - name: "Fleet Summary API"
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/fleet/summary"
+        method: "GET"
+        headers:
+          Content-Type: "application/json"
+    
+    options:
+      vus: 20
+      duration: "60s"
+      thresholds:
+        http_req_duration: ["p(95)<1000"]
+        http_req_failed: ["rate<0.05"]
+
+# ========================================
+# API TESTS (JMeter)
+# ========================================
+jmeter_tests:
+  api_load_test: #load, p2
+    tool: "jmeter"
+    scenarios:
+      - name: "Health Check"
+        url: "https://qa.hub.quvia.ai/neuron-api/health"
+        method: "GET"
+      
+      - name: "Fleet Summary"
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/fleet/summary"
+        method: "GET"
+    
+    thread_group_config:
+      num_threads: 15      # 15 concurrent threads
+      ramp_time: 10        # Ramp up over 10 seconds
+      duration: 45         # Run for 45 seconds
+      loops: 1
+
+  homepage_load_test: #load
+    tool: "jmeter"
+    scenarios:
+      - name: "Homepage"
+        url: "https://config-test.hub.quvia.ai"
+        method: "GET"
+    
+    thread_group_config:
+      num_threads: 20
+      ramp_time: 5
+      duration: 30
+
+# ========================================
+# REPORTING CONFIGURATION
+# ========================================
+reporting:
+  unified_report: true           # Generate unified report combining all tools
+  individual_reports: true       # Also generate individual tool reports
+  output_dir: "performance_results/unified_test"
+  report_name: "unified_performance_report.html"
+  
+  # What to include in unified report
+  include:
+    - playwright
+    - k6
+    - jmeter
+  
+  # Tool-specific metrics to show in reports
+  metrics:
+    # UI Testing (Playwright) - Browser Performance Metrics
+    ui:
+      primary:
+        - page_load_time          # Total page load time
+        - dom_interactive         # Time to DOM interactive
+        - dom_content_loaded      # DOMContentLoaded event
+        - first_contentful_paint  # FCP - First Contentful Paint
+        - largest_contentful_paint # LCP - Largest Contentful Paint
+      
+      secondary:
+        - dns_lookup              # DNS resolution time
+        - tcp_connect             # TCP connection time
+        - request_response        # Request/response time
+        - memory_usage            # JS heap usage
+        - network_requests        # Number of network requests
+      
+      workflow:
+        - step_duration           # Individual step timing
+        - cumulative_time         # Running total
+        - step_success_rate       # Per-step success
+        - total_workflow_time     # End-to-end workflow time
+    
+    # API Testing (k6) - Load Testing Metrics
+    k6:
+      primary:
+        - http_req_duration       # Request duration (avg, p50, p95, p99)
+        - http_reqs               # Total requests & rate (throughput)
+        - http_req_failed         # Failed request rate
+        - vus                     # Virtual users (concurrent)
+      
+      secondary:
+        - http_req_blocked        # Time blocked (waiting for connection)
+        - http_req_connecting     # Time establishing connection
+        - http_req_sending        # Time sending data
+        - http_req_waiting        # Time waiting (TTFB)
+        - http_req_receiving      # Time receiving data
+        - data_received           # Total data received
+        - data_sent               # Total data sent
+      
+      percentiles:
+        - p50                     # 50th percentile (median)
+        - p75                     # 75th percentile
+        - p90                     # 90th percentile
+        - p95                     # 95th percentile
+        - p99                     # 99th percentile
+    
+    # API Testing (JMeter) - Enterprise Load Testing Metrics
+    jmeter:
+      primary:
+        - avg_response_time       # Average response time
+        - min_response_time       # Minimum response time
+        - max_response_time       # Maximum response time
+        - total_samples           # Total number of samples
+        - success_rate            # Percentage of successful requests
+      
+      secondary:
+        - error_count             # Number of errors
+        - throughput              # Requests per second
+        - bytes_received          # Total bytes received
+        - bytes_sent              # Total bytes sent
+        - connect_time            # Connection time
+      
+      percentiles:
+        - median                  # 50th percentile
+        - p90                     # 90th percentile
+        - p95                     # 95th percentile
+        - p99                     # 99th percentile
+  
+  # Comparison metrics (normalized across all tools)
+  unified_metrics:
+    - avg_response_time           # Average response/load time
+    - p50                         # Median
+    - p95                         # 95th percentile
+    - p99                         # 99th percentile
+    - total_requests              # Total requests/page loads
+    - success_rate                # Success percentage
+    - throughput                  # Requests per second (API only)
+  
+  # Report sections to include
+  sections:
+    - executive_summary           # High-level overview
+    - ui_performance              # Playwright results
+    - api_k6_performance          # k6 results
+    - api_jmeter_performance      # JMeter results
+    - workflow_analysis           # Step-by-step breakdowns
+    - comparison_charts           # Cross-tool comparison
+    - detailed_metrics_table      # All metrics in table format

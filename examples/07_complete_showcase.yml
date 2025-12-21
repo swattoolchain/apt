@@ -1,0 +1,109 @@
+# Example 7: Complete Feature Showcase
+#
+# Use Case: Demonstrate ALL framework features in one test
+# Tools: k6 + JMeter + Workflows + Agents + External Code
+# Demonstrates: Complete framework capabilities
+
+test_info:
+  test_suite_name: "Complete Feature Showcase"
+  description: "Demonstrates all APT framework features"
+  version: "1.0"
+
+# Feature 1: k6 API Load Testing
+k6_tests:
+  api_load_test:
+    scenarios:
+      - name: "GET /users"
+        url: "https://jsonplaceholder.typicode.com/users"
+        method: "GET"
+      - name: "POST /posts"
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: "POST"
+        body:
+          title: "Test Post"
+          userId: 1
+    
+    options:
+      vus: 50
+      duration: "2m"
+      thresholds:
+        http_req_duration: ["p(95)<500", "p(99)<1000"]
+        http_req_failed: ["rate<0.01"]
+
+# Feature 2: JMeter Protocol Testing
+jmeter_tests:
+  http_stress_test:
+    scenarios:
+      - name: "GET /comments"
+        url: "https://jsonplaceholder.typicode.com/comments"
+        method: "GET"
+    
+    thread_group_config:
+      num_threads: 30
+      ramp_time: 30
+      duration: 120
+
+# Feature 3: Custom Workflows with Selective Iterations
+workflows:
+  user_journey_test:
+    iterations: 10
+    steps:
+      # Step 1: Login (once per iteration)
+      - name: user_login
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/users/1"
+        method: GET
+        iterations: 1
+      
+      # Step 2: Browse products (stress test - 50 times)
+      - name: browse_products
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: GET
+        iterations: 50
+        iteration_config:
+          delay_between: 0.1
+          fail_on_error: false
+          track_individual: true
+      
+      # Step 3: Add to cart (10 times)
+      - name: add_to_cart
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: POST
+        body:
+          title: "Product"
+          userId: 1
+        iterations: 10
+      
+      # Step 4: Checkout (once)
+      - name: checkout
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts/1"
+        method: GET
+        iterations: 1
+
+# Feature 4: Real-Time Monitoring
+monitoring:
+  influxdb:
+    enabled: true
+    url: "${INFLUXDB_URL}"
+    database: "apt_metrics"
+  
+  grafana:
+    enabled: true
+    dashboard_url: "http://localhost:3000"
+
+reporting:
+  output_dir: "performance_results/07_complete_showcase"
+  include:
+    - k6
+    - jmeter
+    - workflows
+  
+  # Feature 5: Advanced Reporting Options
+  options:
+    generate_charts: true
+    compare_with_baseline: false
+    export_csv: true
+    export_json: true

@@ -1,0 +1,21 @@
+[package]
+name = "apt-desktop"
+version = "1.0.0"
+description = "APT Performance Testing Framework - Desktop Application"
+authors = ["APT Team"]
+license = "MIT"
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = [ "dialog-all", "fs-all", "http-all", "path-all", "shell-execute", "shell-sidecar", "shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

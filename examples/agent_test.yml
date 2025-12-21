@@ -1,0 +1,97 @@
+# Example: Remote Agent Test
+#
+# This example demonstrates using remote agents for distributed testing.
+# 
+# Prerequisites:
+# 1. Deploy an agent following docs/AGENT_DEPLOYMENT.md
+# 2. Set environment variables for agent endpoints and tokens
+#
+# Run:
+#   export AGENT_ENDPOINT="http://your-agent-host:9090"
+#   export AGENT_TOKEN="your-secret-token"
+#   pytest examples/agent_test.yml
+
+test_info:
+  test_suite_name: "Remote Agent Example"
+  description: "Demonstrates remote agent execution for distributed testing"
+  version: "1.0"
+
+# Define remote agents
+agents:
+  test-agent:
+    endpoint: "${AGENT_ENDPOINT}"  # From environment variable
+    auth_token: "${AGENT_TOKEN}"   # From environment variable
+    timeout: 60
+    health_check_interval: 30
+
+# Workflows using agents
+workflows:
+  agent_demo:
+    iterations: 5
+    steps:
+      # Step 1: Execute code on remote agent
+      - name: remote_api_call
+        action: agent_execute
+        agent: test-agent
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "data_size": len(response.text),
+            "agent_location": "remote"
+          }
+      
+      # Step 2: Execute with context variables
+      - name: parameterized_test
+        action: agent_execute
+        agent: test-agent
+        context:
+          url: "https://jsonplaceholder.typicode.com/users"
+          expected_count: 10
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get(context['url'])
+          duration = time.time() - start
+          
+          users = response.json()
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "user_count": len(users),
+            "expected_count": context['expected_count'],
+            "match": len(users) == context['expected_count']
+          }
+      
+      # Step 3: Multiple iterations of same test
+      - name: latency_test
+        action: agent_execute
+        agent: test-agent
+        iterations: 10
+        code: |
+          import requests
+          import time
+          
+          start = time.time()
+          response = requests.get("https://jsonplaceholder.typicode.com/posts")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code
+          }
+
+reporting:
+  output_dir: "performance_results/agent_test"
+  include:
+    - workflows

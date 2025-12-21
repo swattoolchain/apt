@@ -1,0 +1,95 @@
+test_info:
+  test_suite_name: "API Performance - Visualization APIs"
+  test_suite_type: "api_performance"
+  module: "Visualization APIs"
+  description: "Performance tests for visualization and analytics APIs"
+
+# Global performance configuration
+performance_config:
+  api:
+    concurrent_requests: 5
+    iterations: 5
+    timeout: 30
+  
+  thresholds:
+    api_response_time: 2.0
+    error_rate: 0.05
+  
+  reporting:
+    output_dir: "performance_results"
+    generate_html: true
+    generate_json: true
+
+scenarios:
+  # Scenario 1: Flights API single request
+  flights_api_single: #smoke, p1
+    - measure_request:
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/flights/getAgg/v2"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+        body:
+          timeRange:
+            fromTimestamp: "{{get_timestamp(-24,'hours')}}"
+            toTimestamp: "{{get_timestamp(0,'hours')}}"
+          tailIds:
+            include: []
+        iterations: 5
+        performance_config:
+          api:
+            timeout: 30
+  
+  # Scenario 2: Flights API concurrent load test
+  flights_api_concurrent: #load, p1
+    - measure_concurrent:
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/flights/getAgg/v2"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+        body:
+          timeRange:
+            fromTimestamp: "{{get_timestamp(-1,'hours')}}"
+            toTimestamp: "{{get_timestamp(0,'hours')}}"
+        concurrent_users: 10
+        performance_config:
+          api:
+            concurrent_requests: 10
+            timeout: 30
+  
+  # Scenario 3: Fleet summary API
+  fleet_summary_api: #smoke, p2
+    - measure_request:
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/fleet/summary"
+        method: "GET"
+        headers:
+          Content-Type: "application/json"
+        iterations: 3
+  
+  # Scenario 4: High concurrency stress test
+  api_stress_test: #stress, p3
+    - measure_concurrent:
+        url: "https://qa.hub.quvia.ai/neuron-api/health"
+        method: "GET"
+        concurrent_users: 50
+        performance_config:
+          api:
+            concurrent_requests: 50
+            timeout: 10
+  
+  # Scenario 5: Network explorer API
+  network_explorer_api: #p2, regression
+    - measure_request:
+        url: "https://qa.hub.quvia.ai/neuron-api/visualization/api/network/explorer"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+        body:
+          timeRange:
+            fromTimestamp: "{{get_timestamp(-24,'hours')}}"
+            toTimestamp: "{{get_timestamp(0,'hours')}}"
+        iterations: 3
+        performance_config:
+          api:
+            timeout: 45
+          thresholds:
+            api_response_time: 3.0  # Higher threshold for complex query

@@ -1,0 +1,84 @@
+# Example 8: Advanced Agent Scenarios
+#
+# Use Case: Complex agent-based testing scenarios
+# Tools: Multiple Remote Agents with different purposes
+# Demonstrates: Multi-agent coordination, data passing, error handling
+
+test_info:
+  test_suite_name: "Advanced Agent Scenarios"
+  description: "Complex multi-agent testing with data passing and coordination"
+  version: "1.0"
+
+# Multiple agents for different purposes
+agents:
+  data-collector:
+    endpoint: "${DATA_COLLECTOR_ENDPOINT}"
+    auth_token: "${DATA_COLLECTOR_TOKEN}"
+    timeout: 120
+  
+  load-generator:
+    endpoint: "${LOAD_GENERATOR_ENDPOINT}"
+    auth_token: "${LOAD_GENERATOR_TOKEN}"
+    timeout: 300
+  
+  validator:
+    endpoint: "${VALIDATOR_ENDPOINT}"
+    auth_token: "${VALIDATOR_TOKEN}"
+    timeout: 60
+
+workflows:
+  coordinated_test:
+    iterations: 5
+    steps:
+      # Step 1: Collect baseline data
+      - name: collect_baseline
+        action: agent_execute
+        agent: data-collector
+        code_file: "agent_scripts/collect_metrics.py"
+        language: python
+        context:
+          metric_type: "baseline"
+          duration: 60
+      
+      # Step 2: Generate load
+      - name: generate_load
+        action: agent_execute
+        agent: load-generator
+        code_file: "agent_scripts/generate_load.py"
+        language: python
+        context:
+          target_url: "https://api.example.com"
+          requests_per_second: 100
+          duration: 120
+      
+      # Step 3: Collect performance data
+      - name: collect_performance
+        action: agent_execute
+        agent: data-collector
+        code_file: "agent_scripts/collect_metrics.py"
+        language: python
+        context:
+          metric_type: "performance"
+          duration: 60
+      
+      # Step 4: Validate results
+      - name: validate_results
+        action: agent_execute
+        agent: validator
+        code_file: "agent_scripts/validate_performance.py"
+        language: python
+        context:
+          threshold_p95: 500
+          threshold_error_rate: 0.01
+      
+      # Step 5: Query and aggregate results
+      - name: aggregate_results
+        action: agent_query
+        agent: data-collector
+        metric: "performance_summary"
+        timerange: "last_5m"
+
+reporting:
+  output_dir: "performance_results/08_advanced_agents"
+  include:
+    - workflows
