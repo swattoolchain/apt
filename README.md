@@ -22,7 +22,7 @@
 ```bash
 # Clone repository
 git clone https://github.com/your-org/neuron-perf-test.git
-cd neuron-perf-test
+cd apt
 
 # Install dependencies
 pip install -r requirements.txt
