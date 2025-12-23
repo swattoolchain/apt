@@ -21,7 +21,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/neuron-perf-test.git
+git clone https://github.com/swattoolchain/apt.git
 cd apt
 
 # Install dependencies
