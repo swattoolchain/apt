@@ -1,0 +1,76 @@
+# Multi-Region API Monitoring Example
+# Demonstrates: Running API calls from multiple regions
+#
+# Key Feature: Same action (api_call), different agents (WHERE)
+# - Local execution: No agent specified
+# - Remote execution: Agent specified
+#
+# Prerequisites:
+# 1. Deploy agents in different regions
+# 2. Set environment variables for agent endpoints and tokens
+
+test_info:
+  test_suite_name: "Multi-Region API Monitoring"
+  description: "Monitor API health from multiple geographic locations"
+  version: "1.0"
+
+agents:
+  us-east:
+    endpoint: "${US_EAST_ENDPOINT}"
+    auth_token: "${US_EAST_TOKEN}"
+  
+  eu-west:
+    endpoint: "${EU_WEST_ENDPOINT}"
+    auth_token: "${EU_WEST_TOKEN}"
+  
+  asia-pacific:
+    endpoint: "${ASIA_ENDPOINT}"
+    auth_token: "${ASIA_TOKEN}"
+
+workflows:
+  global_api_monitoring:
+    iterations: 10  # Check 10 times
+    steps:
+      # Check from local machine
+      - name: api_health_local
+        action: api_call         # WHAT: API call
+        # No agent = WHERE: Local machine
+        url: "https://api.example.com/health"
+        method: GET
+      
+      # Check from US East
+      - name: api_health_us_east
+        action: api_call         # WHAT: API call
+        agent: us-east           # WHERE: US East agent
+        url: "https://api.example.com/health"
+        method: GET
+      
+      # Check from EU West
+      - name: api_health_eu_west
+        action: api_call         # WHAT: API call
+        agent: eu-west           # WHERE: EU West agent
+        url: "https://api.example.com/health"
+        method: GET
+      
+      # Check from Asia Pacific
+      - name: api_health_asia
+        action: api_call         # WHAT: API call
+        agent: asia-pacific      # WHERE: Asia Pacific agent
+        url: "https://api.example.com/health"
+        method: GET
+      
+      # POST request from US East
+      - name: api_create_user_us
+        action: api_call
+        agent: us-east
+        url: "https://api.example.com/users"
+        method: POST
+        body:
+          name: "Test User"
+          email: "test@example.com"
+        headers:
+          Content-Type: "application/json"
+
+reporting:
+  output_dir: "performance_results/multi_region_api"
+  formats: ["html", "json"]

@@ -1,0 +1,71 @@
+# Quick Start: Remote Agent Test
+#
+# This is a simple example to get you started with remote agents.
+#
+# SETUP INSTRUCTIONS:
+# 1. Deploy an agent on a remote server (see remote_agent_quickstart.md)
+# 2. Set environment variables:
+#    export MY_AGENT_ENDPOINT="http://your-server.com:9090"
+#    export MY_AGENT_TOKEN="your-auth-token"
+# 3. Run: pytest quick_start_agent_test.yml
+
+test_info:
+  test_suite_name: "Quick Start Remote Agent Test"
+  description: "Simple test to verify remote agent setup"
+  version: "1.0"
+
+# Define your remote agent
+agents:
+  my-agent:
+    endpoint: "${MY_AGENT_ENDPOINT}"
+    auth_token: "${MY_AGENT_TOKEN}"
+    timeout: 60
+
+# Simple workflow to test the agent
+workflows:
+  agent_health_check:
+    iterations: 3
+    steps:
+      # Step 1: Simple API call
+      - name: test_public_api
+        action: agent_execute
+        agent: my-agent
+        code: |
+          import requests
+          import time
+          
+          # Test a public API
+          start = time.time()
+          response = requests.get("https://api.github.com/users/github")
+          duration = time.time() - start
+          
+          result = {
+            "duration": duration,
+            "status_code": response.status_code,
+            "success": response.status_code == 200,
+            "agent": "my-agent",
+            "timestamp": time.time()
+          }
+      
+      # Step 2: Simple computation
+      - name: test_computation
+        action: agent_execute
+        agent: my-agent
+        code: |
+          import time
+          import math
+          
+          # Perform some computation
+          start = time.time()
+          total = sum([math.sqrt(i) for i in range(10000)])
+          duration = time.time() - start
+          
+          result = {
+            "computation_time": duration,
+            "result": total,
+            "iterations": 10000
+          }
+
+reporting:
+  output_dir: "performance_results/quick_start_agent"
+  formats: ["html", "json"]

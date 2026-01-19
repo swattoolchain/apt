@@ -1,0 +1,78 @@
+# Distributed Load Testing Example
+# Demonstrates: Running k6 load tests from multiple regions using the new architecture
+#
+# Key Feature: action (WHAT) is separate from agent (WHERE)
+# - action: k6_test = Run a k6 load test
+# - agent: us-east/eu-west = Run on remote agents
+#
+# Prerequisites:
+# 1. Deploy agents with k6 installed
+# 2. Set environment variables:
+#    export US_EAST_ENDPOINT="http://us-server.com:9090"
+#    export US_EAST_TOKEN="your-token"
+#    export EU_WEST_ENDPOINT="http://eu-server.com:9090"
+#    export EU_WEST_TOKEN="your-token"
+
+test_info:
+  test_suite_name: "Distributed k6 Load Test"
+  description: "Run k6 load tests from multiple geographic regions"
+  version: "1.0"
+
+agents:
+  us-east:
+    endpoint: "${US_EAST_ENDPOINT}"
+    auth_token: "${US_EAST_TOKEN}"
+    timeout: 600  # 10 minutes for load test
+  
+  eu-west:
+    endpoint: "${EU_WEST_ENDPOINT}"
+    auth_token: "${EU_WEST_TOKEN}"
+    timeout: 600
+
+workflows:
+  distributed_load_test:
+    iterations: 1
+    steps:
+      # k6 load test from US East
+      - name: k6_load_us_east
+        action: k6_test          # WHAT: Run k6 load test
+        agent: us-east           # WHERE: On US East agent
+        k6_config:
+          scenarios:
+            - name: "GET /users"
+              url: "https://api.example.com/users"
+              method: "GET"
+            
+            - name: "GET /posts"
+              url: "https://api.example.com/posts"
+              method: "GET"
+          
+          options:
+            vus: 100               # 100 virtual users
+            duration: "5m"         # Run for 5 minutes
+            thresholds:
+              http_req_duration: ["p(95)<500"]  # P95 < 500ms
+      
+      # k6 load test from EU West (runs simultaneously)
+      - name: k6_load_eu_west
+        action: k6_test          # WHAT: Run k6 load test
+        agent: eu-west           # WHERE: On EU West agent
+        k6_config:
+          scenarios:
+            - name: "GET /users"
+              url: "https://api.example.com/users"
+              method: "GET"
+            
+            - name: "GET /posts"
+              url: "https://api.example.com/posts"
+              method: "GET"
+          
+          options:
+            vus: 100               # 100 virtual users
+            duration: "5m"         # Run for 5 minutes
+            thresholds:
+              http_req_duration: ["p(95)<500"]
+
+reporting:
+  output_dir: "performance_results/distributed_k6_load"
+  formats: ["html", "json"]

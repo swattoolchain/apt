@@ -1,0 +1,62 @@
+# Distributed UI Performance Test
+#
+# Use Case: Measure UI performance from multiple geographic regions
+# Demonstrates: External code files, multi-region testing, UI performance
+#
+# Prerequisites:
+# 1. Deploy agents in different regions (see remote_agent_complete_guide.md)
+# 2. Set environment variables:
+#    export US_EAST_ENDPOINT="http://us-server.com:9090"
+#    export US_EAST_TOKEN="your-token"
+#    export EU_WEST_ENDPOINT="http://eu-server.com:9090"
+#    export EU_WEST_TOKEN="your-token"
+
+test_info:
+  test_suite_name: "Global UI Performance Test"
+  description: "Measure UI performance from multiple geographic regions"
+  version: "1.0"
+
+# Define agents in different regions
+agents:
+  us-east:
+    endpoint: "${US_EAST_ENDPOINT}"
+    auth_token: "${US_EAST_TOKEN}"
+    timeout: 120
+  
+  eu-west:
+    endpoint: "${EU_WEST_ENDPOINT}"
+    auth_token: "${EU_WEST_TOKEN}"
+    timeout: 120
+
+# Test workflow using external code file
+workflows:
+  global_ui_performance:
+    iterations: 5  # Run 5 times for statistical significance
+    steps:
+      # Test from US East
+      - name: ui_test_us_east
+        action: agent_execute
+        agent: us-east
+        code_file: "agent_scripts/distributed_ui_test.py"
+        language: python
+        context:
+          url: "https://example.com"  # Change to your app URL
+          viewport_width: 1920
+          viewport_height: 1080
+          region: "us-east"
+      
+      # Test from EU West
+      - name: ui_test_eu_west
+        action: agent_execute
+        agent: eu-west
+        code_file: "agent_scripts/distributed_ui_test.py"
+        language: python
+        context:
+          url: "https://example.com"  # Change to your app URL
+          viewport_width: 1920
+          viewport_height: 1080
+          region: "eu-west"
+
+reporting:
+  output_dir: "performance_results/global_ui_performance"
+  formats: ["html", "json"]
