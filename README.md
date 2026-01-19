@@ -10,6 +10,9 @@
 - **🎭 Multi-Tool Support**: Playwright (UI), k6 (API), JMeter (Load), Custom Workflows
 - **📊 Real-Time Monitoring**: InfluxDB + Grafana integration
 - **🌍 Distributed Testing**: Remote agent system for multi-region testing
+- **⚖️ Weighted Load Distribution**: Distribute load across agents by weight with per-agent concurrency
+- **🎯 Convention Over Configuration**: Auto-discover test code from `performance_scripts.py`
+- **🔀 WHAT vs WHERE**: Separate action type from execution location - ANY action runs ANYWHERE
 - **📈 Unified Reporting**: Single HTML report for all test types
 - **🔧 YAML-Driven**: Simple, declarative test definitions
 - **🤖 CLI Tool**: `aptcli` for agent management and deployment
@@ -38,8 +41,14 @@ sudo ln -s $(pwd)/aptcli.py /usr/local/bin/aptcli
 ### Run Your First Test
 
 ```bash
-# Run example test
+# Run simple API test
 pytest examples/01_simple_api_test.yml
+
+# Run compact test (convention over configuration)
+pytest compact_ui_test.yml
+
+# Run distributed load test
+pytest distributed_k6_load_test.yml
 
 # View report
 open performance_results/unified_test/unified_performance_report.html
@@ -89,17 +98,47 @@ k6_tests:
       duration: "30s"
 ```
 
-### 2. Multi-Region Latency Testing
-```bash
-# Create and deploy agents
-aptcli agent create --name us-east --type docker --mode emit
-aptcli agent deploy --name us-east --target ubuntu@us-server.com --type docker
-
-# Run distributed test
-pytest examples/03_multi_region_test.yml
+### 2. Distributed Load Testing with Weighted Distribution
+```yaml
+workflows:
+  distributed_load:
+    iterations: 1000
+    concurrency: 500
+    steps:
+      - name: api_load
+        action: api_call
+        agent:
+          us-east:
+            weight: 60      # 60% of load
+            concurrency: 300
+          eu-west:
+            weight: 40      # 40% of load
+            concurrency: 200
+        url: "https://api.example.com/users"
 ```
 
-### 3. Real User Monitoring
+### 3. Convention Over Configuration
+```python
+# performance_scripts.py
+def ui_test_homepage(context):
+    """Auto-discovered by step name!"""
+    from playwright.sync_api import sync_playwright
+    # ... test logic
+    return {"success": True, "load_time": 1.23}
+```
+
+```yaml
+# YAML - no code needed!
+workflows:
+  ui_test:
+    steps:
+      - name: ui_test_homepage  # Matches method name
+        agent: us-east
+        context:
+          url: "https://your-app.com"
+```
+
+### 4. Real User Monitoring
 ```html
 <script>
   window.APTBrowserAgentConfig = {
@@ -177,7 +216,59 @@ open performance_results/unified_test/unified_performance_report.html
 
 ## 🌟 Advanced Features
 
-### Selective Step Iterations
+### 1. WHAT vs WHERE Architecture
+
+Any action can run on any execution location:
+
+```yaml
+# Same action, different locations
+- name: api_test
+  action: api_call    # WHAT: API call
+  # No agent = WHERE: Local
+
+- name: api_test
+  action: api_call    # WHAT: API call
+  agent: us-east      # WHERE: Remote agent
+
+- name: load_test
+  action: k6_test     # WHAT: k6 load test
+  agent: eu-west      # WHERE: Remote agent (k6 runs there!)
+```
+
+### 2. Code Resolution Priority
+
+1. Explicit `code` parameter in YAML
+2. Explicit `code_file` parameter
+3. Method in `performance_scripts.py` (auto-discovered by step name)
+4. File in `agent_scripts/{step_name}.py`
+5. Auto-generate from action type (api_call, k6_test)
+
+### 3. Weighted Agent Distribution
+
+```yaml
+workflows:
+  production_load:
+    iterations: 1000
+    concurrency: 500
+    steps:
+      - name: api_load
+        action: api_call
+        agent:
+          us-east:
+            weight: 60        # 600 iterations, 300 concurrent
+            concurrency: 300  # Override global
+            ramp_up: 30       # 30s ramp-up
+          eu-west:
+            weight: 30        # 300 iterations, 150 concurrent
+            concurrency: 150
+            ramp_up: 60       # 60s ramp-up
+          asia:
+            weight: 10        # 100 iterations, 50 concurrent
+            concurrency: 50
+        url: "https://api.example.com"
+```
+
+### 4. Selective Step Iterations
 ```yaml
 workflows:
   cart_stress_test:
