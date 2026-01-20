@@ -30,7 +30,6 @@ workflows:
     steps:
       # Check internal API health
       - name: internal_api_health
-        action: agent_execute
         agent: prod-monitor
         code: |
           import requests
@@ -49,7 +48,6 @@ workflows:
       
       # Check database connectivity
       - name: database_connectivity
-        action: agent_execute
         agent: prod-monitor
         code: |
           import time
@@ -72,7 +70,6 @@ workflows:
       
       # Check Redis cache
       - name: redis_connectivity
-        action: agent_execute
         agent: prod-monitor
         code: |
           import time
@@ -92,7 +89,6 @@ workflows:
       
       # Check external API dependency
       - name: external_api_check
-        action: agent_execute
         agent: prod-monitor
         code: |
           import requests

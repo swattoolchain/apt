@@ -39,7 +39,6 @@ workflows:
     steps:
       # Test from US East
       - name: test_from_us_east
-        action: agent_execute
         agent: us-east-agent
         code: |
           import requests
@@ -58,7 +57,6 @@ workflows:
       
       # Test from EU West
       - name: test_from_eu_west
-        action: agent_execute
         agent: eu-west-agent
         code: |
           import requests

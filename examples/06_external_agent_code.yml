@@ -30,23 +30,18 @@ workflows:
     steps:
       # Python script - Health check
       - name: health_check
-        action: agent_execute
         agent: prod-agent
-        code_file: "agent_scripts/health_check.py"
-        language: python
+        code_file: "src/test_scripts/health_check.py"
       
       # Python script - Database check
       - name: database_check
-        action: agent_execute
         agent: prod-agent
-        code_file: "agent_scripts/database_check.py"
-        language: python
+        code_file: "src/test_scripts/database_check.py"
       
       # Shell script - System metrics
       - name: system_metrics
-        action: agent_execute
         agent: prod-agent
-        code_file: "agent_scripts/system_metrics.sh"
+        code_file: "src/test_scripts/system_metrics.sh"
         language: shell
 
 reporting:

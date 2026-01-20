@@ -31,7 +31,6 @@ workflows:
     steps:
       # Step 1: Execute code on remote agent
       - name: remote_api_call
-        action: agent_execute
         agent: test-agent
         code: |
           import requests
@@ -50,7 +49,6 @@ workflows:
       
       # Step 2: Execute with context variables
       - name: parameterized_test
-        action: agent_execute
         agent: test-agent
         context:
           url: "https://jsonplaceholder.typicode.com/users"
@@ -75,7 +73,6 @@ workflows:
       
       # Step 3: Multiple iterations of same test
       - name: latency_test
-        action: agent_execute
         agent: test-agent
         iterations: 10
         code: |
