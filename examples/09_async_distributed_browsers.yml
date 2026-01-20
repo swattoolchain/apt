@@ -1,0 +1,128 @@
+# Example 9: Async Distributed Testing with Browser Contexts
+#
+# Use Case: Long-running browser performance tests across multiple regions
+# Features: Async agents, browser contexts, job queue, priority scheduling
+# Demonstrates: Latest APT framework capabilities
+
+test_info:
+  test_suite_name: "Async Distributed Browser Testing"
+  description: "30-minute browser performance test using async agents and browser contexts"
+  version: "2.0"
+
+# Async agents with job queue configuration
+agents:
+  us-east-agent:
+    endpoint: "${US_EAST_ENDPOINT}"  # e.g., http://vm1:9090
+    auth_token: "${US_EAST_TOKEN}"
+    timeout: 1800  # 30 minutes
+  
+  eu-west-agent:
+    endpoint: "${EU_WEST_ENDPOINT}"  # e.g., http://vm2:9090
+    auth_token: "${EU_WEST_TOKEN}"
+    timeout: 1800
+
+workflows:
+  browser_performance_test:
+    iterations: 50  # 50 browser sessions
+    concurrency: 15  # 15 concurrent browsers (using contexts!)
+    
+    steps:
+      # US East: 15 concurrent browser contexts
+      - name: us_east_browsers
+        agent: us-east-agent
+        priority: high  # High priority job
+        code: |
+          from playwright.async_api import async_playwright
+          import asyncio
+          import time
+          
+          async def run_test():
+              async with async_playwright() as p:
+                  # Single browser instance
+                  browser = await p.chromium.launch(headless=True)
+                  
+                  # Create isolated context (like incognito)
+                  context = await browser.new_context(
+                      viewport={'width': 1920, 'height': 1080},
+                      user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                  )
+                  
+                  # Create page in context
+                  page = await context.new_page()
+                  
+                  # Measure performance
+                  start = time.time()
+                  await page.goto("https://your-app.com")
+                  await page.wait_for_load_state("networkidle")
+                  load_time = time.time() - start
+                  
+                  # Get metrics
+                  metrics = await page.evaluate("""
+                      () => {
+                          const timing = performance.timing;
+                          return {
+                              load_time: timing.loadEventEnd - timing.navigationStart,
+                              dom_ready: timing.domContentLoadedEventEnd - timing.navigationStart,
+                              ttfb: timing.responseStart - timing.requestStart
+                          };
+                      }
+                  """)
+                  
+                  # Cleanup
+                  await context.close()
+                  await browser.close()
+                  
+                  return {
+                      "region": "us-east",
+                      "load_time": load_time,
+                      "metrics": metrics
+                  }
+          
+          result = asyncio.run(run_test())
+      
+      # EU West: 15 concurrent browser contexts
+      - name: eu_west_browsers
+        agent: eu-west-agent
+        priority: high
+        code: |
+          from playwright.async_api import async_playwright
+          import asyncio
+          import time
+          
+          async def run_test():
+              async with async_playwright() as p:
+                  browser = await p.chromium.launch(headless=True)
+                  context = await browser.new_context(
+                      viewport={'width': 1920, 'height': 1080}
+                  )
+                  page = await context.new_page()
+                  
+                  start = time.time()
+                  await page.goto("https://your-app.com")
+                  await page.wait_for_load_state("networkidle")
+                  load_time = time.time() - start
+                  
+                  metrics = await page.evaluate("""
+                      () => ({
+                          load_time: performance.timing.loadEventEnd - performance.timing.navigationStart,
+                          dom_ready: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart
+                      })
+                  """)
+                  
+                  await context.close()
+                  await browser.close()
+                  
+                  return {
+                      "region": "eu-west",
+                      "load_time": load_time,
+                      "metrics": metrics
+                  }
+          
+          result = asyncio.run(run_test())
+
+reporting:
+  output_dir: "performance_results/09_async_distributed"
+  formats: ["html", "json"]
+  include:
+    - workflows
+    - summary
