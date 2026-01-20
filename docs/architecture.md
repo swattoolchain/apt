@@ -6,7 +6,7 @@ This document describes the architecture of the Neuron Performance Testing Frame
 
 ## Components
 
-### Core Framework (`performance/`)
+### Core Framework (`src/core/`)
 
 - **base_performance_tester.py** - Base classes and configuration
 - **ui_performance_tester.py** - UI testing with Playwright

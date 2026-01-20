@@ -71,7 +71,7 @@ CMD ["python", "agent_server.py"]
 Copy the `agent_server.py` file from the APT framework:
 
 ```bash
-cp /path/to/neuron-perf-test/performance/agents/agent_server.py .
+cp /path/to/neuron-perf-test/src/core/agents/agent_server.py .
 ```
 
 #### 5. Build and Run
@@ -141,7 +141,7 @@ pip install fastapi uvicorn aiohttp pydantic
 #### 4. Copy agent_server.py
 
 ```bash
-cp /path/to/apt/performance/agents/agent_server.py .
+cp /path/to/apt/src/core/agents/agent_server.py .
 ```
 
 #### 5. Create run_agent.sh
@@ -210,7 +210,7 @@ EOF
 #### 4. Copy agent_server.py
 
 ```bash
-sudo cp /path/to/apt/performance/agents/agent_server.py .
+sudo cp /path/to/apt/src/core/agents/agent_server.py .
 ```
 
 #### 5. Create Systemd Service

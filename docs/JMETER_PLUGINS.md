@@ -197,7 +197,7 @@ jmeter_tests:
 To add native plugin support to APT, you can extend the `JMeterIntegration` class:
 
 ```python
-# performance/jmeter_plugins.py
+# src/core/jmeter_plugins.py
 class JMeterPluginSupport:
     @staticmethod
     def generate_grpc_sampler(config):

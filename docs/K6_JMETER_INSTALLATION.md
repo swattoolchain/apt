@@ -89,7 +89,7 @@ The framework automatically detects if k6/JMeter are installed:
 ### Current Implementation
 
 ```python
-# performance/unified_runner.py
+# src/core/unified_runner.py
 
 async def run_k6_test(self, ...):
     try:
