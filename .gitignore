@@ -79,3 +79,4 @@ Cargo.lock
 
 # JMeter
 jmeter.log
+*.jtl
