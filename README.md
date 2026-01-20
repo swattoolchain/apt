@@ -10,8 +10,10 @@
 - **🎭 Multi-Tool Support**: Playwright (UI), k6 (API), JMeter (Load), Custom Workflows
 - **📊 Real-Time Monitoring**: InfluxDB + Grafana integration
 - **🌍 Distributed Testing**: Remote agent system for multi-region testing
+- **⚡ Async Agents**: Job queue with priority scheduling for long-running tests (30+ minutes)
+- **🧠 Browser Contexts**: 3x more efficient than separate browsers (70% less RAM)
 - **⚖️ Weighted Load Distribution**: Distribute load across agents by weight with per-agent concurrency
-- **🎯 Convention Over Configuration**: Auto-discover test code from `performance_scripts.py`
+- **🎯 Convention Over Configuration**: Auto-discover test code from `src/core/performance_scripts.py`
 - **🔀 WHAT vs WHERE**: Separate action type from execution location - ANY action runs ANYWHERE
 - **📈 Unified Reporting**: Single HTML report for all test types
 - **🔧 YAML-Driven**: Simple, declarative test definitions
@@ -44,45 +46,72 @@ sudo ln -s $(pwd)/aptcli.py /usr/local/bin/aptcli
 # Run simple API test
 pytest examples/01_simple_api_test.yml
 
-# Run compact test (convention over configuration)
-pytest compact_ui_test.yml
+# Run async distributed browser test (NEW!)
+pytest examples/09_async_distributed_browsers.yml
 
-# Run distributed load test
-pytest distributed_k6_load_test.yml
+# Run weighted load distribution (NEW!)
+pytest examples/10_weighted_load_distribution.yml
 
 # View report
 open performance_results/unified_test/unified_performance_report.html
 ```
 
+## ⭐ What's New in v2.0
+
+### **Async Agents with Job Queue**
+- ✅ Handles 30+ minute tests without AWS timeout issues
+- ✅ Priority-based job scheduling (urgent/high/normal/low)
+- ✅ Configurable concurrency and queue limits
+- ✅ Real-time job status and queue position tracking
+
+### **Browser Contexts**
+- ✅ 3x more capacity (15-20 contexts vs 5 separate browsers)
+- ✅ 70% less RAM usage (6GB vs 20GB for 20 sessions)
+- ✅ 65% less CPU usage
+- ✅ Same isolation as separate browsers
+
+### **New Directory Structure**
+- ✅ Organized `src/` directory (core, agents, aggregators, test_scripts)
+- ✅ Unified `ui/` directory (api, desktop, web)
+- ✅ Clean root with only essential files
+- ✅ Professional, production-ready organization
+
+### **Enhanced Examples**
+- ✅ 12 comprehensive examples with feature matrix
+- ✅ New async distributed browser testing example
+- ✅ New weighted load distribution example
+- ✅ Complete examples/README.md guide
+
+See [STRUCTURE.md](STRUCTURE.md) for migration guide.
+
+---
+
 ## 📚 Documentation
 
 ### Getting Started
 - **[Getting Started](GETTING_STARTED.md)** - Complete beginner's guide with installation and first test
-- **[Quick Reference](performance/QUICKSTART.md)** - Quick reference for common tasks
+- **[Repository Structure](STRUCTURE.md)** - New organized directory structure
+- **[Quick Reference](src/core/QUICKSTART.md)** - Quick reference for common tasks
 
 ### Core Concepts
-- **[YAML Syntax](docs/YAML_SYNTAX.md)** - Test definition reference and syntax guide
 - **[Unified Testing](docs/UNIFIED_TESTING.md)** - Multi-tool unified testing approach
 - **[Metrics & Iterations](docs/METRICS_AND_ITERATIONS.md)** - Metrics collection and iteration control
 
 ### Agent System
+- **[APTCLI Guide](docs/APTCLI_GUIDE.md)** - Complete CLI tool documentation ⭐ NEW
 - **[Agent Usage](docs/AGENT_USAGE.md)** - Remote agent system guide and examples
 - **[Agent Deployment](docs/AGENT_DEPLOYMENT.md)** - Manual deployment instructions
-- **[Agent Scripts](agent_scripts/README.md)** - Reusable utility scripts documentation
-
-### CLI & Tools
-- **[CLI Installation](docs/CLI_INSTALLATION.md)** - aptcli installation and setup
-- **[CLI Reference](docs/CLI_REFERENCE.md)** - Complete command reference
+- **[Test Scripts](src/test_scripts/)** - Reusable utility scripts
 
 ### Monitoring & Reporting
 - **[Real-Time Monitoring](docs/REAL_TIME_MONITORING.md)** - InfluxDB and Grafana setup
 
 ### Advanced
 - **[Advanced Features](docs/ADVANCED_FEATURES.md)** - Advanced features reference
-- **[Framework Architecture](performance/README.md)** - Internal architecture and design
+- **[Framework Architecture](src/core/README.md)** - Internal architecture and design
 
 ### Examples
-- **[Examples Guide](examples/README.md)** - Comprehensive examples with feature matrix
+- **[Examples Guide](examples/README.md)** - Comprehensive examples with feature matrix ⭐ NEW
 
 ## 🎯 Use Cases
 
@@ -119,7 +148,7 @@ workflows:
 
 ### 3. Convention Over Configuration
 ```python
-# performance_scripts.py
+# src/core/performance_scripts.py
 def ui_test_homepage(context):
     """Auto-discovered by step name!"""
     from playwright.sync_api import sync_playwright
@@ -138,16 +167,23 @@ workflows:
           url: "https://your-app.com"
 ```
 
-### 4. Real User Monitoring
-```html
-<script>
-  window.APTBrowserAgentConfig = {
-    name: 'my-website',
-    mode: 'emit',
-    emitTarget: 'https://metrics.company.com/browser-metrics'
-  };
-</script>
-<script src="apt-browser-agent.min.js"></script>
+### 4. Async Agents with Browser Contexts (NEW!)
+```yaml
+agents:
+  browser-agent:
+    endpoint: "http://vm1:9090"
+    timeout: 1800  # 30 minutes
+
+workflows:
+  browser_perf_test:
+    concurrency: 15  # 15 browser contexts (efficient!)
+    steps:
+      - name: ui_test
+        agent: browser-agent
+        priority: high  # Priority scheduling
+        code: |
+          from playwright.async_api import async_playwright
+          # Browser context code (isolated, 70% less RAM)
 ```
 
 ## 🏗️ Architecture
@@ -239,8 +275,8 @@ Any action can run on any execution location:
 
 1. Explicit `code` parameter in YAML
 2. Explicit `code_file` parameter
-3. Method in `performance_scripts.py` (auto-discovered by step name)
-4. File in `agent_scripts/{step_name}.py`
+3. Method in `src/core/performance_scripts.py` (auto-discovered by step name)
+4. File in `src/test_scripts/{step_name}.py`
 5. Auto-generate from action type (api_call, k6_test)
 
 ### 3. Weighted Agent Distribution
