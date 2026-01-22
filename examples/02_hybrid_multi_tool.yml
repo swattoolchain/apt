@@ -1,0 +1,63 @@
+# Example 2: Hybrid Multi-Tool Test
+#
+# Use Case: Comprehensive testing with k6, JMeter, and custom workflows
+# Tools: k6 + JMeter + Custom Workflows
+# Demonstrates: Unified testing approach
+
+test_info:
+  test_suite_name: "Hybrid Multi-Tool Test"
+  description: "Combines k6, JMeter, and custom workflows in one test"
+  version: "1.0"
+
+# k6 for API load testing
+k6_tests:
+  api_load_test:
+    scenarios:
+      - name: "GET /users"
+        url: "https://jsonplaceholder.typicode.com/users"
+        method: "GET"
+    
+    options:
+      vus: 20
+      duration: "1m"
+
+# JMeter for protocol testing
+jmeter_tests:
+  http_stress_test:
+    scenarios:
+      - name: "GET /comments"
+        url: "https://jsonplaceholder.typicode.com/comments"
+        method: "GET"
+    
+    thread_group_config:
+      num_threads: 10
+      ramp_time: 10
+      duration: 60
+
+# Custom workflow for complex scenarios
+workflows:
+  user_journey:
+    iterations: 5
+    steps:
+      - name: fetch_users
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/users"
+        method: GET
+      
+      - name: fetch_posts
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: GET
+      
+      - name: fetch_comments
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/comments"
+        method: GET
+        iterations: 3
+
+reporting:
+  output_dir: "performance_results/02_hybrid_test"
+  include:
+    - k6
+    - jmeter
+    - workflows

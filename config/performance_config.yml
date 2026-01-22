@@ -1,0 +1,29 @@
+performance:
+  ui:
+    concurrent_users: 5
+    iterations: 3
+    headless: false
+    browser_name: "chromium"
+    screenshots: true
+    traces: true
+    video: false
+    viewport:
+      width: 1920
+      height: 1080
+    timeout: 60000  # milliseconds
+    
+  api:
+    concurrent_requests: 10
+    iterations: 5
+    timeout: 30  # seconds
+    
+  reporting:
+    output_dir: "performance_results"
+    generate_html: true
+    generate_json: true
+    open_browser: false
+    
+  thresholds:
+    page_load_time: 5.0  # seconds
+    api_response_time: 2.0  # seconds
+    error_rate: 0.05  # 5%

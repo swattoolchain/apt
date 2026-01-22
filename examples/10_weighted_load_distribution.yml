@@ -1,0 +1,87 @@
+# Example 10: Weighted Load Distribution with Job Queue
+#
+# Use Case: Distribute load across multiple agents with different capacities
+# Features: Weighted distribution, job queue, priority scheduling
+# Demonstrates: Advanced load balancing with async agents
+
+test_info:
+  test_suite_name: "Weighted Load Distribution"
+  description: "Distribute 1000 VUs across 3 agents based on their capacity"
+  version: "2.0"
+
+agents:
+  large-agent:
+    endpoint: "${LARGE_AGENT_ENDPOINT}"  # 8 CPU, 32GB RAM
+    auth_token: "${LARGE_AGENT_TOKEN}"
+    timeout: 1800
+  
+  medium-agent-1:
+    endpoint: "${MEDIUM_AGENT_1_ENDPOINT}"  # 4 CPU, 16GB RAM
+    auth_token: "${MEDIUM_AGENT_1_TOKEN}"
+    timeout: 1800
+  
+  medium-agent-2:
+    endpoint: "${MEDIUM_AGENT_2_ENDPOINT}"  # 4 CPU, 16GB RAM
+    auth_token: "${MEDIUM_AGENT_2_TOKEN}"
+    timeout: 1800
+
+workflows:
+  weighted_load_test:
+    iterations: 1
+    steps:
+      # Large agent: 500 VUs (50% of total load)
+      - name: large_agent_load
+        action: k6_test
+        agent: large-agent
+        priority: urgent  # Run first
+        k6_config:
+          scenarios:
+            - name: "API Load - Large Agent"
+              url: "https://api.example.com/users"
+          options:
+            vus: 500  # 50% of 1000 VUs
+            duration: "30m"
+            thresholds:
+              http_req_duration: ["p(95)<500"]
+              http_req_failed: ["rate<0.01"]
+      
+      # Medium agent 1: 250 VUs (25% of total load)
+      - name: medium_agent_1_load
+        action: k6_test
+        agent: medium-agent-1
+        priority: high
+        k6_config:
+          scenarios:
+            - name: "API Load - Medium Agent 1"
+              url: "https://api.example.com/posts"
+          options:
+            vus: 250  # 25% of 1000 VUs
+            duration: "30m"
+            thresholds:
+              http_req_duration: ["p(95)<500"]
+      
+      # Medium agent 2: 250 VUs (25% of total load)
+      - name: medium_agent_2_load
+        action: k6_test
+        agent: medium-agent-2
+        priority: high
+        k6_config:
+          scenarios:
+            - name: "API Load - Medium Agent 2"
+              url: "https://api.example.com/comments"
+          options:
+            vus: 250  # 25% of 1000 VUs
+            duration: "30m"
+            thresholds:
+              http_req_duration: ["p(95)<500"]
+
+# Total: 1000 VUs distributed as 50%/25%/25%
+# All tests run in parallel via async job queue
+
+reporting:
+  output_dir: "performance_results/10_weighted_distribution"
+  formats: ["html", "json"]
+  include:
+    - workflows
+    - summary
+    - comparison

@@ -1,0 +1,251 @@
+---
+# Example 11: Temporal Workflow Orchestration
+# Demonstrates long-running performance tests with Temporal workflow engine
+# Features: Retry policies, timeouts, state management, multi-phase testing
+
+temporal:
+  # Temporal server configuration
+  server:
+    host: "localhost"
+    port: 7233
+    namespace: "performance-testing"
+  
+  workflows:
+    # Long-running performance test workflow
+    comprehensive_perf_test:
+      workflow_id: "perf-test-{{ timestamp }}"
+      task_queue: "performance-tests"
+      execution_timeout: 7200  # 2 hours max
+      
+      # Workflow activities (executed in sequence)
+      activities:
+        # Phase 1: Environment Warmup
+        - name: warmup_phase
+          timeout: 300  # 5 minutes
+          retry_policy:
+            max_attempts: 2
+            initial_interval: 10
+            backoff_coefficient: 2.0
+          code: |
+            import asyncio
+            import aiohttp
+            
+            async def warmup_phase():
+                """Warm up the system before load testing"""
+                print("🔥 Starting warmup phase...")
+                
+                async with aiohttp.ClientSession() as session:
+                    # Hit endpoints to warm up caches
+                    for i in range(10):
+                        async with session.get("https://api.example.com/health") as resp:
+                            await resp.text()
+                        await asyncio.sleep(1)
+                
+                return {"status": "warmed_up", "requests": 10}
+        
+        # Phase 2: Baseline Performance Test
+        - name: baseline_test
+          timeout: 600  # 10 minutes
+          retry_policy:
+            max_attempts: 3
+            initial_interval: 30
+            backoff_coefficient: 2.0
+          code: |
+            async def baseline_test():
+                """Establish baseline performance metrics"""
+                print("📊 Running baseline test...")
+                
+                # Run k6 test for baseline
+                import subprocess
+                result = subprocess.run([
+                    'k6', 'run',
+                    '--vus', '10',
+                    '--duration', '5m',
+                    '--out', 'influxdb=http://localhost:8086/k6',
+                    'baseline_test.js'
+                ], capture_output=True)
+                
+                return {
+                    "status": "completed",
+                    "exit_code": result.returncode,
+                    "vus": 10,
+                    "duration": "5m"
+                }
+        
+        # Phase 3: Load Test (Main Test)
+        - name: load_test
+          timeout: 3600  # 1 hour
+          retry_policy:
+            max_attempts: 2
+            initial_interval: 60
+            backoff_coefficient: 1.5
+            max_interval: 300
+          code: |
+            async def load_test():
+                """Main load test with increasing load"""
+                print("🚀 Starting load test...")
+                
+                results = []
+                
+                # Ramp up load in stages
+                stages = [
+                    {"vus": 50, "duration": "10m"},
+                    {"vus": 100, "duration": "15m"},
+                    {"vus": 200, "duration": "20m"},
+                    {"vus": 100, "duration": "10m"},  # Ramp down
+                ]
+                
+                for stage in stages:
+                    print(f"  Stage: {stage['vus']} VUs for {stage['duration']}")
+                    # Execute k6 test for this stage
+                    # ... implementation
+                    results.append(stage)
+                
+                return {
+                    "status": "completed",
+                    "stages": len(stages),
+                    "max_vus": 200,
+                    "total_duration": "55m"
+                }
+        
+        # Phase 4: Soak Test (Optional)
+        - name: soak_test
+          timeout: 7200  # 2 hours
+          retry_policy:
+            max_attempts: 1  # No retry for soak tests
+          skip_on_failure: true  # Continue workflow even if this fails
+          code: |
+            async def soak_test():
+                """Long-running soak test to detect memory leaks"""
+                print("⏱️  Starting soak test (2 hours)...")
+                
+                import subprocess
+                result = subprocess.run([
+                    'k6', 'run',
+                    '--vus', '50',
+                    '--duration', '2h',
+                    '--out', 'influxdb=http://localhost:8086/k6',
+                    'soak_test.js'
+                ], capture_output=True)
+                
+                return {
+                    "status": "completed",
+                    "duration": "2h",
+                    "vus": 50
+                }
+        
+        # Phase 5: Cooldown & Metrics Collection
+        - name: cooldown_phase
+          timeout: 300  # 5 minutes
+          retry_policy:
+            max_attempts: 2
+          code: |
+            async def cooldown_phase():
+                """Cool down and collect final metrics"""
+                print("❄️  Cooldown phase...")
+                
+                import asyncio
+                await asyncio.sleep(60)  # Wait for metrics to settle
+                
+                # Collect and aggregate metrics
+                metrics = {
+                    "avg_response_time": "245ms",
+                    "p95_response_time": "890ms",
+                    "error_rate": "0.02%",
+                    "throughput": "1250 req/s"
+                }
+                
+                return {"status": "completed", "metrics": metrics}
+        
+        # Phase 6: Report Generation
+        - name: generate_report
+          timeout: 180  # 3 minutes
+          retry_policy:
+            max_attempts: 3
+          code: |
+            async def generate_report():
+                """Generate comprehensive performance report"""
+                print("📝 Generating report...")
+                
+                # Generate HTML report
+                # Send email notifications
+                # Upload to S3/storage
+                
+                return {
+                    "status": "completed",
+                    "report_url": "https://reports.example.com/perf-test-123"
+                }
+
+# Alternative: Distributed Temporal Workflow
+temporal:
+  workflows:
+    distributed_perf_test:
+      workflow_id: "distributed-perf-{{ timestamp }}"
+      task_queue: "distributed-tests"
+      
+      # Parallel activities across regions
+      activities:
+        - name: test_us_east
+          parallel: true
+          agent: us-east
+          timeout: 1800
+          code: |
+            async def test_us_east():
+                # Run test from US East region
+                return {"region": "us-east", "latency": "45ms"}
+        
+        - name: test_eu_west
+          parallel: true
+          agent: eu-west
+          timeout: 1800
+          code: |
+            async def test_eu_west():
+                # Run test from EU West region
+                return {"region": "eu-west", "latency": "120ms"}
+        
+        - name: test_ap_south
+          parallel: true
+          agent: ap-south
+          timeout: 1800
+          code: |
+            async def test_ap_south():
+                # Run test from Asia Pacific region
+                return {"region": "ap-south", "latency": "200ms"}
+        
+        # Aggregate results (runs after all parallel activities)
+        - name: aggregate_results
+          parallel: false
+          timeout: 300
+          code: |
+            async def aggregate_results(us_result, eu_result, ap_result):
+                """Aggregate results from all regions"""
+                return {
+                    "regions_tested": 3,
+                    "avg_latency": "121ms",
+                    "results": [us_result, eu_result, ap_result]
+                }
+
+# Temporal with Signals (for interactive control)
+temporal:
+  workflows:
+    interactive_perf_test:
+      workflow_id: "interactive-perf-{{ timestamp }}"
+      task_queue: "interactive-tests"
+      
+      # Signals for runtime control
+      signals:
+        - name: pause_test
+          handler: pause_execution
+        - name: resume_test
+          handler: resume_execution
+        - name: adjust_load
+          handler: adjust_vus
+      
+      activities:
+        - name: continuous_load_test
+          timeout: 10800  # 3 hours
+          code: |
+            async def continuous_load_test():
+                """Long-running test that can be controlled via signals"""
+                # Implementation with signal handling
+                pass

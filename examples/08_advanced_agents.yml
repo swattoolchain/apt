@@ -1,0 +1,90 @@
+# Example 8: Advanced Multi-Agent Coordination
+#
+# Use Case: Complex distributed testing with multiple specialized agents
+# Features: Multi-agent coordination, k6 load testing, custom validation
+# Demonstrates: Latest APT framework with async agents
+
+test_info:
+  test_suite_name: "Advanced Multi-Agent Coordination"
+  description: "Coordinated testing across multiple specialized agents"
+  version: "2.0"
+
+# Multiple specialized agents
+agents:
+  metrics-agent:
+    endpoint: "${METRICS_AGENT_ENDPOINT}"
+    auth_token: "${METRICS_AGENT_TOKEN}"
+    timeout: 300
+  
+  load-agent:
+    endpoint: "${LOAD_AGENT_ENDPOINT}"
+    auth_token: "${LOAD_AGENT_TOKEN}"
+    timeout: 1800  # 30 minutes for long tests
+  
+  validator-agent:
+    endpoint: "${VALIDATOR_AGENT_ENDPOINT}"
+    auth_token: "${VALIDATOR_AGENT_TOKEN}"
+    timeout: 120
+
+workflows:
+  coordinated_test:
+    iterations: 5
+    steps:
+      # Step 1: Collect baseline metrics
+      - name: collect_baseline
+        agent: metrics-agent
+        priority: high
+        code_file: "src/test_scripts/collect_metrics.py"
+        context:
+          metric_type: "baseline"
+          duration: 60
+      
+      # Step 2: Generate load with k6
+      - name: generate_load
+        action: k6_test
+        agent: load-agent
+        priority: urgent
+        k6_config:
+          scenarios:
+            - name: "API Load Test"
+              url: "https://api.example.com/users"
+          options:
+            vus: 100
+            duration: "2m"
+            thresholds:
+              http_req_duration: ["p(95)<500"]
+              http_req_failed: ["rate<0.01"]
+      
+      # Step 3: Collect performance metrics
+      - name: collect_performance
+        agent: metrics-agent
+        priority: high
+        code_file: "src/test_scripts/collect_metrics.py"
+        context:
+          metric_type: "performance"
+          duration: 60
+      
+      # Step 4: Validate results
+      - name: validate_results
+        agent: validator-agent
+        priority: normal
+        code_file: "src/test_scripts/validate_performance.py"
+        context:
+          threshold_p95: 500
+          threshold_error_rate: 0.01
+      
+      # Step 5: Health check
+      - name: health_check
+        agent: validator-agent
+        code_file: "src/test_scripts/health_check.py"
+        context:
+          endpoints:
+            - "https://api.example.com/health"
+            - "https://api.example.com/status"
+
+reporting:
+  output_dir: "performance_results/08_advanced_agents"
+  formats: ["html", "json"]
+  include:
+    - workflows
+    - summary

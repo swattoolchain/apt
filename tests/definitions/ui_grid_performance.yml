@@ -1,0 +1,89 @@
+test_info:
+  test_suite_name: "Grid UI Performance - Login and Navigation"
+  test_suite_type: "ui_performance"
+  module: "Grid Config UI"
+  description: "Performance tests for login and grid navigation flows"
+
+# Global performance configuration (can be overridden per scenario)
+performance_config:
+  ui:
+    concurrent_users: 3
+    iterations: 2
+    headless: false
+    screenshots: true
+    traces: true
+    trace_on_failure_only: false
+    lightweight_mode: false
+    viewport:
+      width: 1920
+      height: 1080
+  
+  thresholds:
+    page_load_time: 5.0
+    error_rate: 0.05
+  
+  reporting:
+    output_dir: "performance_results"
+    generate_html: true
+    generate_json: true
+
+scenarios:
+  # Scenario 1: Login page load performance
+  login_page_load: #smoke, p1, regression
+    - measure_page_load:
+        url: "https://config-test.hub.quvia.ai"
+        wait_until: "networkidle"
+        iterations: 3
+        performance_config:
+          ui:
+            screenshots: true
+            traces: true
+  
+  # Scenario 2: Login flow with high concurrency
+  login_flow_load_test: #load, p2
+    - measure_page_load:
+        url: "https://config-test.hub.quvia.ai"
+        wait_until: "domcontentloaded"
+        iterations: 1
+        performance_config:
+          ui:
+            concurrent_users: 10
+            headless: true
+            screenshots: false
+            traces: false
+            lightweight_mode: true  # Optimize for high concurrency
+  
+  # Scenario 3: Grid navigation performance
+  grid_navigation: #smoke, p1
+    - measure_action:
+        name: "navigate_to_grids"
+        iterations: 2
+        performance_config:
+          ui:
+            concurrent_users: 2
+            screenshots: true
+            traces: true
+            trace_on_failure_only: true  # Only save traces if test fails
+  
+  # Scenario 4: Component editing performance
+  component_edit_performance: #p2, regression
+    - measure_action:
+        name: "edit_hub_grid"
+        iterations: 3
+        performance_config:
+          ui:
+            concurrent_users: 1
+            screenshots: true
+            traces: true
+  
+  # Scenario 5: Deployment flow performance
+  deployment_flow: #p3, disabled
+    - measure_action:
+        name: "deploy_configuration"
+        iterations: 1
+        performance_config:
+          ui:
+            concurrent_users: 1
+            screenshots: true
+            traces: true
+            timeout: 120000  # 2 minutes for deployment

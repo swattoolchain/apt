@@ -1,0 +1,243 @@
+# Neuron API Performance Test
+#
+# Use Case: Performance testing for Neuron API endpoints
+# Tools: JMeter
+# Description: Tests Fleet Summary, IFE Events, and Analytics IFE Overview APIs
+# 
+# This test onboards the existing JMX file with 3 thread groups:
+# 1. Fleet Summary (5 threads, 1 loop)
+# 2. IFE Events (10 threads, 1 second ramp-up, 1 loop)
+# 3. Analytics IFE Overview (10 threads, 1 loop)
+
+test_info:
+  test_suite_name: "Neuron API Performance Test"
+  test_suite_type: "unified"
+  description: "Performance testing for Neuron Visualization APIs including Fleet Summary, IFE Events, and Analytics"
+  version: "1.0"
+  environment: "gamma"
+  base_url: "https://gamma.hub.quvia.ai"
+
+# JMeter Tests in YAML format
+# This provides the same functionality as the JMX file but in APT YAML format
+jmeter_tests:
+  
+  fleet_summary_test:
+    tool: "jmeter"
+    scenarios:
+      - name: "Fleet Summary API"
+        url: "https://gamma.hub.quvia.ai/neuron-api/visualization/api/fleet-summary/get-metrics/v3"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {
+              "include": ["active"],
+              "exclude": []
+            },
+            "timeRange": {
+              "timeframe": "-1800|seconds"
+            },
+            "enabledMetrics": [
+              "eqoemin.packet_loss",
+              "eqoemin.packet_loss_down",
+              "liveseatmin.login_avl"
+            ],
+            "includeFirstLast": false,
+            "includeTripActive": false
+          }
+    
+    
+    thread_group_config:
+      num_threads: 5
+      ramp_time: 0
+      loops: 3  # Retry 3 times to handle intermittent failures
+      
+    # JMeter HTTP settings to handle intermittent SSL/connection issues
+    http_config:
+      connect_timeout: 30000  # 30 seconds
+      response_timeout: 60000  # 60 seconds
+      retry_on_error: true
+      max_retries: 2
+  
+  ife_events_test:
+    tool: "jmeter"
+    scenarios:
+      - name: "IFE Events - 3 Days"
+        url: "https://gamma.hub.quvia.ai/neuron-api/ife-visualization/api/events/list/v2"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {"include": ["active"], "exclude": []},
+            "categories": {"include": ["Alarm"], "exclude": []},
+            "ticketStatuses": {"exclude": [], "include": ["OPEN", "PENDING", "WAITING"]},
+            "timeRange": {
+              "fromTimestamp": "2026-01-18T00:00:00Z",
+              "toTimestamp": "2026-01-20T23:59:59Z"
+            }
+          }
+      
+      - name: "IFE Events - 10 Days"
+        url: "https://gamma.hub.quvia.ai/neuron-api/ife-visualization/api/events/list/v2"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {"include": ["active"], "exclude": []},
+            "categories": {"include": ["Alarm"], "exclude": []},
+            "ticketStatuses": {"exclude": [], "include": ["OPEN", "PENDING", "WAITING"]},
+            "timeRange": {
+              "fromTimestamp": "2026-01-09T00:00:00Z",
+              "toTimestamp": "2026-01-19T23:59:59Z"
+            }
+          }
+    
+    thread_group_config:
+      num_threads: 10
+      ramp_time: 1
+      loops: 3  # Retry 3 times to handle intermittent failures
+      
+    http_config:
+      connect_timeout: 30000
+      response_timeout: 60000
+      retry_on_error: true
+      max_retries: 2
+  
+  analytics_ife_overview_test:
+    tool: "jmeter"
+    scenarios:
+      - name: "Analytics IFE Overview - Without DSS - 3 Days"
+        url: "https://gamma.hub.quvia.ai/neuron-api/ife-visualization/api/ryg/summary/list"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {"include": ["active"], "exclude": []},
+            "timeRange": {
+              "fromTimestamp": "2026-01-19T00:00:00Z",
+              "toTimestamp": "2026-01-21T23:59:59Z"
+            },
+            "groupBy": "FLEET",
+            "enabledMetrics": [
+              "siteCount", "totalSeats", "flightCount", "flightHrs", "avgHrsPerFlt",
+              "restartPerFlt", "commandPerFlt", "rebootPerFlt", "faultPerFlt", "appResetPerFlt",
+              "restarts", "commands", "reboots", "faults", "appResets",
+              "avgSeatAvailability", "avgFltAvailability"
+            ]
+          }
+      
+      - name: "Analytics IFE Overview - Without DSS - 10 Days"
+        url: "https://gamma.hub.quvia.ai/neuron-api/ife-visualization/api/ryg/summary/list"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {"include": ["active"], "exclude": []},
+            "timeRange": {
+              "fromTimestamp": "2026-01-12T00:00:00Z",
+              "toTimestamp": "2026-01-21T23:59:59Z"
+            },
+            "groupBy": "FLEET",
+            "enabledMetrics": [
+              "siteCount", "totalSeats", "flightCount", "flightHrs", "avgHrsPerFlt",
+              "restartPerFlt", "commandPerFlt", "rebootPerFlt", "faultPerFlt", "appResetPerFlt",
+              "restarts", "commands", "reboots", "faults", "appResets",
+              "avgSeatAvailability", "avgFltAvailability"
+            ]
+          }
+      
+      - name: "Analytics IFE Overview - With DSS - 3 Days"
+        url: "https://gamma.hub.quvia.ai/neuron-api/ife-visualization/api/ryg/summary/list"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {"include": ["active"], "exclude": []},
+            "timeRange": {
+              "fromTimestamp": "2026-01-19T00:00:00Z",
+              "toTimestamp": "2026-01-21T23:59:59Z"
+            },
+            "groupBy": "FLEET",
+            "enabledMetrics": [
+              "siteCount", "totalSeats", "flightCount", "flightHrs", "avgHrsPerFlt",
+              "restartPerFlt", "commandPerFlt", "rebootPerFlt", "faultPerFlt", "appResetPerFlt",
+              "restarts", "commands", "reboots", "faults", "appResets",
+              "avgSeatAvailability", "avgFltAvailability",
+              "liveseatmin.kid", "liveseatmin.stowd", "liveseatmin.logd_in", "liveseatmin.pa",
+              "liveseatmin.dss_availability", "liveseatmin.content_avl", "liveseatmin.tv_svc_avl",
+              "liveseatmin.login_avl", "liveseatmin.dss_connected", "liveseatmin.dss_comm_loss",
+              "liveseatmin.tm_sync", "liveseatmin.pctl_lock", "liveseatmin.vls"
+            ]
+          }
+      
+      - name: "Analytics IFE Overview - With DSS - 10 Days"
+        url: "https://gamma.hub.quvia.ai/neuron-api/ife-visualization/api/ryg/summary/list"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBhc3N3b3JkX2V4cGlyZWQiOnRydWUsImlzcyI6Ind3dy5lc3BhY2VuZXR3b3Jrcy5pbyIsImlhdCI6MTc2OTAxODQyMywiZXhwIjoxNzY5MDYzNDIzfQ.ov72_rEkmyHXDqLZGNh5xj6YIj0u6tVtLJ3N2TUZZBBqfSVN-MtvPS4P51NsgHhPkpEuHEUnJMETbS7aPS2xOBcWAsig0mPz4pX_qTGgld8SYC_hLe0zkceG3QxJ4NnmGaZYrU4XXkCZBLS9dMADKZRpRRbud4W_l4TC79gc0r2HPFl8lXT1Mn7fG_ncE7rYdOiLV56LtZZM8XsW3NRIEW-FlVdGwgijoReJHs_JqiqnXZ9ENmzgdBXr43hk-mUEDbiJEB_yaYNIYy0r86jMtsgFrDVCkoKOezwH-yjUCOSB8dGAt4w2HrdisKtX9_cTpHnBOlxd__D8xyjpoHZPDQ"
+        body: |
+          {
+            "flightStatuses": {"include": ["active"], "exclude": []},
+            "timeRange": {
+              "fromTimestamp": "2026-01-12T00:00:00Z",
+              "toTimestamp": "2026-01-21T23:59:59Z"
+            },
+            "groupBy": "FLEET",
+            "enabledMetrics": [
+              "siteCount", "totalSeats", "flightCount", "flightHrs", "avgHrsPerFlt",
+              "restartPerFlt", "commandPerFlt", "rebootPerFlt", "faultPerFlt", "appResetPerFlt",
+              "restarts", "commands", "reboots", "faults", "appResets",
+              "avgSeatAvailability", "avgFltAvailability",
+              "liveseatmin.kid", "liveseatmin.stowd", "liveseatmin.logd_in", "liveseatmin.pa",
+              "liveseatmin.dss_availability", "liveseatmin.content_avl", "liveseatmin.tv_svc_avl",
+              "liveseatmin.login_avl", "liveseatmin.dss_connected", "liveseatmin.dss_comm_loss",
+              "liveseatmin.tm_sync", "liveseatmin.pctl_lock", "liveseatmin.vls"
+            ]
+          }
+    
+    thread_group_config:
+      num_threads: 10
+      ramp_time: 0
+      loops: 3  # Retry 3 times to handle intermittent failures
+      
+    http_config:
+      connect_timeout: 30000
+      response_timeout: 60000
+      retry_on_error: true
+      max_retries: 2
+
+# Performance thresholds
+thresholds:
+  jmeter:
+    response_time_p95: 2000  # 95th percentile < 2 seconds
+    response_time_p99: 5000  # 99th percentile < 5 seconds
+    error_rate: 0.01         # Error rate < 1%
+    throughput_min: 10       # Minimum 10 requests/second
+
+# Reporting configuration
+reporting:
+  output_dir: "performance_results/neuron_api_test"
+  include:
+    - jmeter
+  formats:
+    - html
+    - csv
+    - json
+  generate_charts: true
+  compare_with_baseline: false
+
+# Environment variables (set these before running)
+# export AUTH_TOKEN="your_bearer_token_here"

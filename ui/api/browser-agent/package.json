@@ -1,0 +1,29 @@
+{
+    "name": "@apt/browser-agent",
+    "version": "1.0.0",
+    "description": "APT Browser Agent for Real User Monitoring",
+    "main": "dist/apt-browser-agent.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc && webpack --mode production",
+        "dev": "tsc && webpack --mode development",
+        "watch": "tsc --watch"
+    },
+    "keywords": [
+        "performance",
+        "monitoring",
+        "rum",
+        "web-vitals"
+    ],
+    "author": "APT Framework",
+    "license": "MIT",
+    "dependencies": {
+        "web-vitals": "^3.5.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.0",
+        "webpack": "^5.89.0",
+        "webpack-cli": "^5.1.4",
+        "ts-loader": "^9.5.1"
+    }
+}

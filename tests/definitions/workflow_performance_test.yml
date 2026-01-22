@@ -1,0 +1,202 @@
+# Workflow Orchestration Performance Test
+# Test Temporal workflows, Airflow DAGs, and custom workflows
+
+test_info:
+  test_suite_name: "Workflow Orchestration Performance Test"
+  test_suite_type: "workflow"
+  description: "Performance testing for workflow orchestration systems"
+
+# ========================================
+# TEMPORAL WORKFLOWS
+# ========================================
+temporal_workflows:
+  data_processing_workflow: #smoke, p1
+    workflow_id: "data-processing-wf-001"
+    namespace: "default"
+    
+    # Temporal client configuration
+    temporal_config:
+      host: "localhost:7233"
+      namespace: "default"
+    
+    # Metrics to collect
+    metrics:
+      - workflow_execution_time
+      - activity_execution_times
+      - retry_counts
+      - event_history
+    
+    # Performance thresholds
+    thresholds:
+      max_execution_time: 300  # seconds
+      max_activity_time: 60
+    
+    iterations: 3
+
+  user_onboarding_workflow: #load, p2
+    workflow_id: "user-onboarding-wf-*"  # Wildcard for multiple runs
+    namespace: "production"
+    iterations: 5
+
+# ========================================
+# AIRFLOW DAGS
+# ========================================
+airflow_dags:
+  etl_pipeline: #smoke, p1
+    dag_id: "etl_daily_pipeline"
+    dag_run_id: "manual__2024-01-15T00:00:00"
+    
+    # Airflow API configuration
+    airflow_config:
+      api_url: "http://localhost:8080"
+      auth_token: "${AIRFLOW_TOKEN}"  # From environment
+    
+    # Metrics to collect
+    metrics:
+      - dag_execution_time
+      - task_execution_times
+      - task_retry_counts
+      - task_states
+    
+    # Performance thresholds
+    thresholds:
+      max_dag_time: 600
+      max_task_time: 120
+      min_success_rate: 0.95
+    
+    iterations: 2
+
+# ========================================
+# CUSTOM WORKFLOWS
+# ========================================
+custom_workflows:
+  microservice_orchestration: #load, p2
+    workflow_id: "order-processing-flow"
+    
+    # Custom metrics collector
+    custom_collector:
+      type: "api"
+      api_url: "http://localhost:9090/metrics/workflow/${workflow_id}"
+      headers:
+        Authorization: "Bearer ${API_TOKEN}"
+      
+      # Custom parser function (Python code reference)
+      parser: "parsers.parse_order_workflow_metrics"
+    
+    iterations: 5
+
+  batch_job_workflow: #load
+    workflow_id: "batch-job-${timestamp}"
+    
+    # Collect from log files
+    custom_collector:
+      type: "log_file"
+      log_file: "/var/log/batch-jobs/latest.log"
+      patterns:
+        execution_time: "Execution time: (\\d+\\.\\d+)s"
+        records_processed: "Processed (\\d+) records"
+        error_count: "Errors: (\\d+)"
+      tail_lines: 5000
+    
+    iterations: 3
+
+# ========================================
+# SERVER-SIDE METRICS COLLECTION
+# ========================================
+server_metrics:
+  # Collect during workflow execution
+  enabled: true
+  collection_interval: 5  # seconds
+  
+  collectors:
+    # Prometheus metrics
+    prometheus:
+      enabled: true
+      url: "http://localhost:9090"
+      queries:
+        cpu_usage: "rate(process_cpu_seconds_total[1m])"
+        memory_usage: "process_resident_memory_bytes"
+        request_rate: "rate(http_requests_total[1m])"
+        error_rate: "rate(http_requests_total{status=~\"5..\"}[1m])"
+    
+    # API endpoint metrics
+    api_metrics:
+      enabled: true
+      endpoints:
+        - name: "app_health"
+          url: "http://localhost:8000/health"
+          parser: "parsers.parse_health_response"
+        
+        - name: "app_stats"
+          url: "http://localhost:8000/stats"
+          parser: "parsers.parse_stats_response"
+    
+    # Log file monitoring
+    log_monitoring:
+      enabled: true
+      files:
+        - path: "/var/log/app/application.log"
+          patterns:
+            response_time: "response_time=(\\d+)ms"
+            error_count: "ERROR"
+          tail_lines: 1000
+    
+    # Database queries
+    database_metrics:
+      enabled: false
+      connection: "${DATABASE_URL}"
+      queries:
+        active_connections: "SELECT count(*) FROM pg_stat_activity"
+        slow_queries: "SELECT count(*) FROM pg_stat_statements WHERE mean_time > 1000"
+    
+    # Custom collector function
+    custom:
+      enabled: true
+      function: "collectors.collect_custom_metrics"
+      params:
+        service_name: "workflow-service"
+        environment: "production"
+
+# ========================================
+# REPORTING
+# ========================================
+reporting:
+  unified_report: true
+  output_dir: "performance_results/workflow_tests"
+  
+  # Workflow-specific metrics
+  metrics:
+    workflow:
+      primary:
+        - total_execution_time
+        - activity_execution_times
+        - task_execution_times
+        - retry_counts
+        - success_rate
+      
+      secondary:
+        - event_count
+        - state_transitions
+        - parallel_executions
+        - queue_time
+    
+    server:
+      primary:
+        - cpu_usage
+        - memory_usage
+        - request_rate
+        - error_rate
+      
+      secondary:
+        - disk_io
+        - network_io
+        - database_connections
+        - cache_hit_rate
+  
+  # Report sections
+  sections:
+    - executive_summary
+    - workflow_performance
+    - server_metrics_timeline
+    - correlation_analysis
+    - bottleneck_detection

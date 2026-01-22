@@ -1,0 +1,78 @@
+# Docker Compose for APT - Allied Performance Testing
+# Includes framework, monitoring stack, and test execution
+
+version: '3.8'
+
+services:
+  # Main performance testing framework
+  apt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: apt:latest
+    container_name: apt
+    volumes:
+      # Mount test definitions
+      - ./tests:/app/tests
+      # Mount results directory
+      - ./performance_results:/app/performance_results
+      # Mount config
+      - ./config:/app/config
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PERF_K6_METHOD=binary
+      - PERF_JMETER_METHOD=binary
+    networks:
+      - perf-network
+    command: tail -f /dev/null  # Keep container running
+
+  # InfluxDB for time-series metrics
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+    networks:
+      - perf-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/unified_dashboard.json
+    networks:
+      - perf-network
+    depends_on:
+      - influxdb
+
+  # Test application (example)
+  test-app:
+    image: nginx:alpine
+    container_name: test-app
+    ports:
+      - "8080:80"
+    networks:
+      - perf-network
+
+networks:
+  perf-network:
+    driver: bridge
+
+volumes:
+  influxdb-data:
+  grafana-data:
