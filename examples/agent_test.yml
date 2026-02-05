@@ -10,85 +10,41 @@
 #   export AGENT_ENDPOINT="http://your-agent-host:9090"
 #   export AGENT_TOKEN="your-secret-token"
 #   pytest examples/agent_test.yml
+# ✅ Agents loaded from config/agents.yml (Global Agent Pool)
 
 test_info:
-  test_suite_name: "Remote Agent Example"
-  description: "Demonstrates remote agent execution for distributed testing"
-  version: "1.0"
-
-# Define remote agents
-agents:
-  test-agent:
-    endpoint: "${AGENT_ENDPOINT}"  # From environment variable
-    auth_token: "${AGENT_TOKEN}"   # From environment variable
-    timeout: 60
-    health_check_interval: 30
-
-# Workflows using agents
+  test_suite_name: Remote Agent Example
+  description: Demonstrates remote agent execution for distributed testing
+  version: '2.0'
 workflows:
   agent_demo:
     iterations: 5
     steps:
-      # Step 1: Execute code on remote agent
-      - name: remote_api_call
-        agent: test-agent
-        code: |
-          import requests
-          import time
-          
-          start = time.time()
-          response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
-          duration = time.time() - start
-          
-          result = {
-            "duration": duration,
-            "status_code": response.status_code,
-            "data_size": len(response.text),
-            "agent_location": "remote"
-          }
-      
-      # Step 2: Execute with context variables
-      - name: parameterized_test
-        agent: test-agent
-        context:
-          url: "https://jsonplaceholder.typicode.com/users"
-          expected_count: 10
-        code: |
-          import requests
-          import time
-          
-          start = time.time()
-          response = requests.get(context['url'])
-          duration = time.time() - start
-          
-          users = response.json()
-          
-          result = {
-            "duration": duration,
-            "status_code": response.status_code,
-            "user_count": len(users),
-            "expected_count": context['expected_count'],
-            "match": len(users) == context['expected_count']
-          }
-      
-      # Step 3: Multiple iterations of same test
-      - name: latency_test
-        agent: test-agent
-        iterations: 10
-        code: |
-          import requests
-          import time
-          
-          start = time.time()
-          response = requests.get("https://jsonplaceholder.typicode.com/posts")
-          duration = time.time() - start
-          
-          result = {
-            "duration": duration,
-            "status_code": response.status_code
-          }
-
+    - name: remote_api_call
+      agent: test-agent
+      code: "import requests\nimport time\n\nstart = time.time()\nresponse = requests.get(\"\
+        https://jsonplaceholder.typicode.com/posts/1\")\nduration = time.time() -\
+        \ start\n\nresult = {\n  \"duration\": duration,\n  \"status_code\": response.status_code,\n\
+        \  \"data_size\": len(response.text),\n  \"agent_location\": \"remote\"\n\
+        }\n"
+    - name: parameterized_test
+      agent: test-agent
+      context:
+        url: https://jsonplaceholder.typicode.com/users
+        expected_count: 10
+      code: "import requests\nimport time\n\nstart = time.time()\nresponse = requests.get(context['url'])\n\
+        duration = time.time() - start\n\nusers = response.json()\n\nresult = {\n\
+        \  \"duration\": duration,\n  \"status_code\": response.status_code,\n  \"\
+        user_count\": len(users),\n  \"expected_count\": context['expected_count'],\n\
+        \  \"match\": len(users) == context['expected_count']\n}\n"
+    - name: latency_test
+      agent: test-agent
+      iterations: 10
+      code: "import requests\nimport time\n\nstart = time.time()\nresponse = requests.get(\"\
+        https://jsonplaceholder.typicode.com/posts\")\nduration = time.time() - start\n\
+        \nresult = {\n  \"duration\": duration,\n  \"status_code\": response.status_code\n\
+        }\n"
 reporting:
-  output_dir: "performance_results/agent_test"
+  output_dir: performance_results/agent_test
   include:
-    - workflows
+  - workflows

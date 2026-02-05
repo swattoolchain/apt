@@ -14,66 +14,29 @@
 #    export US_EAST_TOKEN="your-token"
 #    export EU_WEST_ENDPOINT="http://eu-server.com:9090"
 #    export EU_WEST_TOKEN="your-token"
+# ✅ Agents loaded from config/agents.yml (Global Agent Pool)
 
 test_info:
-  test_suite_name: "Multi-Region Latency Test"
-  description: "Test API performance from multiple geographic locations"
-  version: "1.0"
-
-# Define remote agents
-agents:
-  us-east-agent:
-    endpoint: "${US_EAST_ENDPOINT}"
-    auth_token: "${US_EAST_TOKEN}"
-    timeout: 60
-  
-  eu-west-agent:
-    endpoint: "${EU_WEST_ENDPOINT}"
-    auth_token: "${EU_WEST_TOKEN}"
-    timeout: 60
-
-# Test from multiple regions
+  test_suite_name: Multi-Region Latency Test
+  description: Test API performance from multiple geographic locations
+  version: '2.0'
 workflows:
   global_latency_test:
     iterations: 10
     steps:
-      # Test from US East
-      - name: test_from_us_east
-        agent: us-east-agent
-        code: |
-          import requests
-          import time
-          
-          start = time.time()
-          response = requests.get("https://api.example.com/health")
-          duration = time.time() - start
-          
-          result = {
-            "duration": duration,
-            "status_code": response.status_code,
-            "region": "us-east",
-            "timestamp": time.time()
-          }
-      
-      # Test from EU West
-      - name: test_from_eu_west
-        agent: eu-west-agent
-        code: |
-          import requests
-          import time
-          
-          start = time.time()
-          response = requests.get("https://api.example.com/health")
-          duration = time.time() - start
-          
-          result = {
-            "duration": duration,
-            "status_code": response.status_code,
-            "region": "eu-west",
-            "timestamp": time.time()
-          }
-
+    - name: test_from_us_east
+      agent: us-east-agent
+      code: "import requests\nimport time\n\nstart = time.time()\nresponse = requests.get(\"\
+        https://api.example.com/health\")\nduration = time.time() - start\n\nresult\
+        \ = {\n  \"duration\": duration,\n  \"status_code\": response.status_code,\n\
+        \  \"region\": \"us-east\",\n  \"timestamp\": time.time()\n}\n"
+    - name: test_from_eu_west
+      agent: eu-west-agent
+      code: "import requests\nimport time\n\nstart = time.time()\nresponse = requests.get(\"\
+        https://api.example.com/health\")\nduration = time.time() - start\n\nresult\
+        \ = {\n  \"duration\": duration,\n  \"status_code\": response.status_code,\n\
+        \  \"region\": \"eu-west\",\n  \"timestamp\": time.time()\n}\n"
 reporting:
-  output_dir: "performance_results/03_multi_region"
+  output_dir: performance_results/03_multi_region
   include:
-    - workflows
+  - workflows

@@ -12,39 +12,27 @@
 # 2. Set environment variable:
 #    export PROD_AGENT_ENDPOINT="http://server.com:9090"
 #    export PROD_AGENT_TOKEN="your-token"
+# ✅ Agents loaded from config/agents.yml (Global Agent Pool)
 
 test_info:
-  test_suite_name: "External Agent Code Files"
-  description: "Demonstrates using external code files with agents"
-  version: "1.0"
-
-agents:
-  prod-agent:
-    endpoint: "${PROD_AGENT_ENDPOINT}"
-    auth_token: "${PROD_AGENT_TOKEN}"
-    timeout: 60
-
+  test_suite_name: External Agent Code Files
+  description: Demonstrates using external code files with agents
+  version: '2.0'
 workflows:
   external_code_demo:
     iterations: 3
     steps:
-      # Python script - Health check
-      - name: health_check
-        agent: prod-agent
-        code_file: "src/test_scripts/health_check.py"
-      
-      # Python script - Database check
-      - name: database_check
-        agent: prod-agent
-        code_file: "src/test_scripts/database_check.py"
-      
-      # Shell script - System metrics
-      - name: system_metrics
-        agent: prod-agent
-        code_file: "src/test_scripts/system_metrics.sh"
-        language: shell
-
+    - name: health_check
+      agent: prod-agent
+      code_file: src/test_scripts/health_check.py
+    - name: database_check
+      agent: prod-agent
+      code_file: src/test_scripts/database_check.py
+    - name: system_metrics
+      agent: prod-agent
+      code_file: src/test_scripts/system_metrics.sh
+      language: shell
 reporting:
-  output_dir: "performance_results/06_external_code"
+  output_dir: performance_results/06_external_code
   include:
-    - workflows
+  - workflows

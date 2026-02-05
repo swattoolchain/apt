@@ -5,33 +5,15 @@
 # 2. File-Based Execution (Referencing external scripts)
 # 3. Smart Resolution (Automatic discovery via naming conventions)
 # 4. General Python Step (Inline code for custom logic)
+# 5. Global Agent Pool (agents loaded from config/agents.yml)
 
 test_info:
   test_suite_name: "Advanced Distributed Hybrid Test"
   description: "Showcasing QPT's modular execution modes"
-  version: "3.0"
+  version: "4.0"
   test_suite_type: "unified"
 
-agents:
-  jmeter-server:
-    endpoint: "http://172.31.128.182:5007"
-    auth_token: "JPnDucYK__kmeaNFT-Ur6QbcKTLeOsCYvpCkebB42H8"
-    timeout: 300
-    deploy_info:
-      type: "shell"
-      target: "ubuntu@172.31.128.182"
-      ssh_key: "/Users/dineshrvl/pems/world-cloud.pem"
-      remote_dir: "/home/ubuntu/jmeter-agent"
-  
-  k6-server:
-    endpoint: "http://172.31.128.185:5007"
-    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
-    timeout: 300
-    deploy_info:
-      type: "shell"
-      target: "ubuntu@172.31.128.185"
-      ssh_key: "/Users/dineshrvl/pems/world-cloud.pem"
-      remote_dir: "/home/ubuntu/k6-agent"
+# ✅ NO AGENTS SECTION - All agents loaded from config/agents.yml
 
 workflows:
   advanced_distributed_load:

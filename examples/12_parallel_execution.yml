@@ -1,62 +1,48 @@
+# ✅ Agents loaded from config/agents.yml (Global Agent Pool)
+
 test_info:
-  test_suite_name: "Group Execution Demo"
-  description: "Demonstrates 2-level parallel grouping"
-
-agents:
-  jmeter-server:
-    endpoint: "http://172.31.128.182:5007"
-    deploy_info:
-      type: "shell"
-      target: "ubuntu@172.31.128.182"
-      ssh_key: "~/pems/world-cloud.pem"
-      remote_dir: "/home/ubuntu/jmeter-agent"
-
-  k6-server:
-    endpoint: "http://172.31.128.185:5007"
-    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
-    deploy_info:
-      type: "shell"
-      target: "ubuntu@172.31.128.185"
-      ssh_key: "~/pems/world-cloud.pem"
-      remote_dir: "/home/ubuntu/k6-agent"
-
+  test_suite_name: Group Execution Demo
+  description: Demonstrates 2-level parallel grouping
 workflows:
-  # WORKFLOW GROUP A
   us_region_flow:
-    group: "global_attack_phase_1"
+    group: global_attack_phase_1
     steps:
-      - name: us_warmup
-        action: api_call
-        url: "https://httpbin.org/get"
-      - name: us_load
-        group: "load_phase"
-        action: jmeter_test
-        agent: jmeter-server
-        jmeter_config:
-          scenarios: [{name: "US Load", url: "https://httpbin.org/delay/1", method: "GET"}]
-          thread_group_config: {num_threads: 5, duration: 10}
-
+    - name: us_warmup
+      action: api_call
+      url: https://httpbin.org/get
+    - name: us_load
+      group: load_phase
+      action: jmeter_test
+      agent: jmeter-server
+      jmeter_config:
+        scenarios:
+        - name: US Load
+          url: https://httpbin.org/delay/1
+          method: GET
+        thread_group_config:
+          num_threads: 5
+          duration: 10
   eu_region_flow:
-    group: "global_attack_phase_1"
+    group: global_attack_phase_1
     steps:
-      - name: eu_warmup
-        action: api_call
-        url: "https://httpbin.org/get"
-      - name: eu_load
-        group: "load_phase"
-        action: k6_test
-        agent: k6-server
-        k6_config:
-          vus: 5
-          duration: "10s"
-          scenarios: [{name: "EU Load", url: "https://httpbin.org/delay/1", method: "GET"}]
-
-  # SEQUENTIAL CLEANUP
+    - name: eu_warmup
+      action: api_call
+      url: https://httpbin.org/get
+    - name: eu_load
+      group: load_phase
+      action: k6_test
+      agent: k6-server
+      k6_config:
+        vus: 5
+        duration: 10s
+        scenarios:
+        - name: EU Load
+          url: https://httpbin.org/delay/1
+          method: GET
   cleanup_flow:
     steps:
-      - name: final_check
-        action: api_call
-        url: "https://httpbin.org/status/200"
-
+    - name: final_check
+      action: api_call
+      url: https://httpbin.org/status/200
 reporting:
-  output_dir: "performance_results/group_test"
+  output_dir: performance_results/group_test

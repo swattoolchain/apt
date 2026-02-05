@@ -6,33 +6,15 @@
 # 3. File-Based Execution (k6)
 # 4. Smart Resolution (Method & File)
 # 5. Inline Code Execution
+# 6. Global Agent Pool (agents loaded from config/agents.yml)
 
 test_info:
   test_suite_name: "QPT Full Feature Showcase"
   description: "Demonstrating Parallelism, Smart Resolution, and Multi-Mode Agents"
-  version: "3.0"
+  version: "4.0"
   test_suite_type: "unified"
 
-agents:
-  jmeter-server:
-    endpoint: "http://172.31.128.182:5007"
-    auth_token: "default_token"
-    timeout: 300
-    deploy_info:
-      type: "shell"
-      target: "ubuntu@172.31.128.182"
-      ssh_key: "~/pems/world-cloud.pem"
-      remote_dir: "/home/ubuntu/jmeter-agent"
-  
-  k6-server:
-    endpoint: "http://172.31.128.185:5007"
-    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
-    timeout: 300
-    deploy_info:
-      type: "shell"
-      target: "ubuntu@172.31.128.185"
-      ssh_key: "~/pems/world-cloud.pem"
-      remote_dir: "/home/ubuntu/k6-agent"
+# ✅ NO AGENTS SECTION - All agents loaded from config/agents.yml
 
 workflows:
   # ──────────────────────────────────────────────────────────────────

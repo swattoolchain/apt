@@ -3,126 +3,63 @@
 # Use Case: Long-running browser performance tests across multiple regions
 # Features: Async agents, browser contexts, job queue, priority scheduling
 # Demonstrates: Latest APT framework capabilities
+# ✅ Agents loaded from config/agents.yml (Global Agent Pool)
 
 test_info:
-  test_suite_name: "Async Distributed Browser Testing"
-  description: "30-minute browser performance test using async agents and browser contexts"
-  version: "2.0"
-
-# Async agents with job queue configuration
-agents:
-  us-east-agent:
-    endpoint: "${US_EAST_ENDPOINT}"  # e.g., http://vm1:9090
-    auth_token: "${US_EAST_TOKEN}"
-    timeout: 1800  # 30 minutes
-  
-  eu-west-agent:
-    endpoint: "${EU_WEST_ENDPOINT}"  # e.g., http://vm2:9090
-    auth_token: "${EU_WEST_TOKEN}"
-    timeout: 1800
-
+  test_suite_name: Async Distributed Browser Testing
+  description: 30-minute browser performance test using async agents and browser contexts
+  version: '3.0'
 workflows:
   browser_performance_test:
-    iterations: 50  # 50 browser sessions
-    concurrency: 15  # 15 concurrent browsers (using contexts!)
-    
+    iterations: 50
+    concurrency: 15
     steps:
-      # US East: 15 concurrent browser contexts
-      - name: us_east_browsers
-        agent: us-east-agent
-        priority: high  # High priority job
-        code: |
-          from playwright.async_api import async_playwright
-          import asyncio
-          import time
-          
-          async def run_test():
-              async with async_playwright() as p:
-                  # Single browser instance
-                  browser = await p.chromium.launch(headless=True)
-                  
-                  # Create isolated context (like incognito)
-                  context = await browser.new_context(
-                      viewport={'width': 1920, 'height': 1080},
-                      user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                  )
-                  
-                  # Create page in context
-                  page = await context.new_page()
-                  
-                  # Measure performance
-                  start = time.time()
-                  await page.goto("https://your-app.com")
-                  await page.wait_for_load_state("networkidle")
-                  load_time = time.time() - start
-                  
-                  # Get metrics
-                  metrics = await page.evaluate("""
-                      () => {
-                          const timing = performance.timing;
-                          return {
-                              load_time: timing.loadEventEnd - timing.navigationStart,
-                              dom_ready: timing.domContentLoadedEventEnd - timing.navigationStart,
-                              ttfb: timing.responseStart - timing.requestStart
-                          };
-                      }
-                  """)
-                  
-                  # Cleanup
-                  await context.close()
-                  await browser.close()
-                  
-                  return {
-                      "region": "us-east",
-                      "load_time": load_time,
-                      "metrics": metrics
-                  }
-          
-          result = asyncio.run(run_test())
-      
-      # EU West: 15 concurrent browser contexts
-      - name: eu_west_browsers
-        agent: eu-west-agent
-        priority: high
-        code: |
-          from playwright.async_api import async_playwright
-          import asyncio
-          import time
-          
-          async def run_test():
-              async with async_playwright() as p:
-                  browser = await p.chromium.launch(headless=True)
-                  context = await browser.new_context(
-                      viewport={'width': 1920, 'height': 1080}
-                  )
-                  page = await context.new_page()
-                  
-                  start = time.time()
-                  await page.goto("https://your-app.com")
-                  await page.wait_for_load_state("networkidle")
-                  load_time = time.time() - start
-                  
-                  metrics = await page.evaluate("""
-                      () => ({
-                          load_time: performance.timing.loadEventEnd - performance.timing.navigationStart,
-                          dom_ready: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart
-                      })
-                  """)
-                  
-                  await context.close()
-                  await browser.close()
-                  
-                  return {
-                      "region": "eu-west",
-                      "load_time": load_time,
-                      "metrics": metrics
-                  }
-          
-          result = asyncio.run(run_test())
-
+    - name: us_east_browsers
+      agent: us-east-agent
+      priority: high
+      code: "from playwright.async_api import async_playwright\nimport asyncio\nimport\
+        \ time\n\nasync def run_test():\n    async with async_playwright() as p:\n\
+        \        # Single browser instance\n        browser = await p.chromium.launch(headless=True)\n\
+        \        \n        # Create isolated context (like incognito)\n        context\
+        \ = await browser.new_context(\n            viewport={'width': 1920, 'height':\
+        \ 1080},\n            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)'\n\
+        \        )\n        \n        # Create page in context\n        page = await\
+        \ context.new_page()\n        \n        # Measure performance\n        start\
+        \ = time.time()\n        await page.goto(\"https://your-app.com\")\n     \
+        \   await page.wait_for_load_state(\"networkidle\")\n        load_time = time.time()\
+        \ - start\n        \n        # Get metrics\n        metrics = await page.evaluate(\"\
+        \"\"\n            () => {\n                const timing = performance.timing;\n\
+        \                return {\n                    load_time: timing.loadEventEnd\
+        \ - timing.navigationStart,\n                    dom_ready: timing.domContentLoadedEventEnd\
+        \ - timing.navigationStart,\n                    ttfb: timing.responseStart\
+        \ - timing.requestStart\n                };\n            }\n        \"\"\"\
+        )\n        \n        # Cleanup\n        await context.close()\n        await\
+        \ browser.close()\n        \n        return {\n            \"region\": \"\
+        us-east\",\n            \"load_time\": load_time,\n            \"metrics\"\
+        : metrics\n        }\n\nresult = asyncio.run(run_test())\n"
+    - name: eu_west_browsers
+      agent: eu-west-agent
+      priority: high
+      code: "from playwright.async_api import async_playwright\nimport asyncio\nimport\
+        \ time\n\nasync def run_test():\n    async with async_playwright() as p:\n\
+        \        browser = await p.chromium.launch(headless=True)\n        context\
+        \ = await browser.new_context(\n            viewport={'width': 1920, 'height':\
+        \ 1080}\n        )\n        page = await context.new_page()\n        \n  \
+        \      start = time.time()\n        await page.goto(\"https://your-app.com\"\
+        )\n        await page.wait_for_load_state(\"networkidle\")\n        load_time\
+        \ = time.time() - start\n        \n        metrics = await page.evaluate(\"\
+        \"\"\n            () => ({\n                load_time: performance.timing.loadEventEnd\
+        \ - performance.timing.navigationStart,\n                dom_ready: performance.timing.domContentLoadedEventEnd\
+        \ - performance.timing.navigationStart\n            })\n        \"\"\")\n\
+        \        \n        await context.close()\n        await browser.close()\n\
+        \        \n        return {\n            \"region\": \"eu-west\",\n      \
+        \      \"load_time\": load_time,\n            \"metrics\": metrics\n     \
+        \   }\n\nresult = asyncio.run(run_test())\n"
 reporting:
-  output_dir: "performance_results/09_async_distributed"
-  formats: ["html", "json"]
+  output_dir: performance_results/09_async_distributed
+  formats:
+  - html
+  - json
   include:
-    - workflows
-    - summary
+  - workflows
+  - summary
