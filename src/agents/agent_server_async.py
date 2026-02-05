@@ -404,32 +404,56 @@ async def _execute_job(job_id: str):
 def _execute_code(code: str, context: Dict, timeout: int, progress_callback=None):
     """
     Execute code and return results.
-    This is where you'd run k6, JMeter, Playwright, etc.
     """
-    import subprocess
+    import asyncio
+    import time
     import json
+    import requests
+    import datetime
+    import math
+    import subprocess
+    import os
+    import shutil
+    import sys
     
-    # Example: Run k6 test
-    # In real implementation, parse code to determine what to run
-    
-    # Simulate progress updates
-    if progress_callback:
-        for i in range(0, 100, 10):
-            progress_callback(i)
-            time.sleep(timeout / 10)  # Simulate work
-    
-    # Execute actual code
-    # result = subprocess.run([...], capture_output=True, timeout=timeout)
-    
-    # For now, return mock result
-    return {
-        "status": "success",
-        "metrics": {
-            "requests": 180000,
-            "avg_response_time": 160,
-            "p95": 250
-        }
+    # Create restricted execution environment
+    allowed_modules = {
+        'time': time,
+        'json': json,
+        'requests': requests,
+        'datetime': datetime,
+        'math': math,
+        'subprocess': subprocess,
+        'os': os,
+        'shutil': shutil,
+        'sys': sys
     }
+    
+    exec_globals = {
+        '__builtins__': __builtins__,
+        **allowed_modules
+    }
+    
+    exec_locals = context.copy()
+    exec_locals['context'] = context
+    
+    # Update progress callback wrapper
+    def update_progress(p):
+        if progress_callback:
+            progress_callback(p)
+            
+    exec_locals['update_progress'] = update_progress
+    
+    try:
+        # Execute code
+        logger.info(f"Executing code:\n{code}")
+        logger.info(f"Globals: {list(exec_globals.keys())}")
+        exec(code, exec_globals, exec_locals)
+        return exec_locals.get('result', {})
+        
+    except Exception as e:
+        logger.error(f"Execution error: {e}")
+        raise e
 
 
 def _update_progress(job_id: str, progress: float):

@@ -15,7 +15,7 @@ import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from custom_aggregators.selective_iteration_aggregator import aggregate_selective_iterations
+from src.aggregators.selective_iteration_aggregator import aggregate_selective_iterations
 
 
 async def execute_api_call(

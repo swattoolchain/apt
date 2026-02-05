@@ -116,9 +116,11 @@ class RemoteAgentClient:
             "timeout": timeout or self.config.timeout
         }
         
+        url = f"{self.config.endpoint}/execute"
+        
         try:
             async with self.session.post(
-                f"{self.config.endpoint}/execute",
+                url,
                 json=payload,
                 headers=self._get_headers(),
                 timeout=aiohttp.ClientTimeout(total=timeout or self.config.timeout + 10)

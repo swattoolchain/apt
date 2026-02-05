@@ -1,0 +1,39 @@
+test_info:
+  test_suite_name: "Local Parallel Verification"
+  description: "Verifies parallel execution logic using local delayed API calls"
+
+workflows:
+  # Group 1: Should run Parallel (Total time ~ 2s)
+  parallel_flow_1:
+    group: "parallel_check"
+    steps:
+      - name: step1_2s
+        action: api_call
+        url: "https://httpbin.org/delay/2"
+  
+  parallel_flow_2:
+    group: "parallel_check"
+    steps:
+      - name: step2_2s
+        action: api_call
+        url: "https://httpbin.org/delay/2"
+
+  # Group 2: Sequential Step Check (Inside one workflow)
+  mixed_flow:
+    steps:
+      - name: seq_step
+        action: api_call
+        url: "https://httpbin.org/delay/1"
+      
+      # These two should run parallel (Total ~ 2s)
+      - name: para_step_1
+        group: "step_group_A"
+        action: api_call
+        url: "https://httpbin.org/delay/2"
+      - name: para_step_2
+        group: "step_group_A"
+        action: api_call
+        url: "https://httpbin.org/delay/2"
+
+reporting:
+  output_dir: "performance_results/local_parallel"

@@ -20,9 +20,16 @@ When you run a command like `python3 qptcli.py run my_test.yml`, here is what ha
 ## ❓ Common Questions
 
 ### 1. Do steps run in Sequential or Parallel?
-*   **Steps** within a workflow run **Sequentially** (one after another).
-*   **Iterations** within a single step (e.g., running the same login 5 times) also run **Sequentially** by default in the workflow runner.
-*   **Load Testing**: If you use `action: k6_test` or `action: jmeter_test`, the **load itself** (the virtual users/threads) runs in **Parallel** on the agent, but the QPT framework waits for that entire load test to finish before moving to the next step.
+*   **Sequential (Default)**: Steps run one after another.
+*   **Parallel Groups (New)**: You can group steps to run simultaneously across multiple agents.
+    ```yaml
+    - group: "attack_phase"
+      parallel: true
+      steps:
+        - name: us_load (runs on agent-1)
+        - name: eu_load (runs on agent-2)
+    ```
+*   **Load Testing**: Inside a `k6_test` or `jmeter_test` step, the traffic is always parallel.
 
 ### 2. How does the local VM know the Agent is done?
 It works like a phone call:

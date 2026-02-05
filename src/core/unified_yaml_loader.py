@@ -8,6 +8,7 @@ import yaml
 import asyncio
 import logging
 import json
+import time
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
@@ -40,6 +41,13 @@ class UnifiedYAMLTestRunner:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         self.unified_runner = UnifiedTestRunner(self.output_dir)
+        
+        # Initialize results storage
+        self.test_results = {
+            'workflow_results': [],
+            'k6_results': [],
+            'jmeter_results': [] 
+        }
         
         # Initialize agent registry and health monitor
         self.agent_registry = AgentRegistry()
@@ -513,264 +521,235 @@ except Exception as e:
             raise
 
     async def _run_workflows(self):
-        """Run workflows from YAML definition."""
+        """Run workflows from YAML definition with Parallel Group support."""
         logger.info("Running workflows...")
         
         import aiohttp
         from examples.run_workflow_test import execute_api_call
         from src.aggregators.selective_iteration_aggregator import aggregate_selective_iterations
-        import time
+        from itertools import groupby
         
         workflows = self.definition.get('workflows', {})
         
-        for workflow_name, workflow_config in workflows.items():
-            logger.info(f"Running workflow: {workflow_name}")
-            print(f"\n📊 Running workflow: {workflow_name}")
-            
-            # Execute workflow iterations
-            workflow_results = []
-            iterations = int(workflow_config.get('iterations', 1))
-            
-            async with aiohttp.ClientSession() as session:
-                for i in range(iterations):
-                    print(f"\n🔄 Workflow Iteration {i+1}/{iterations}")
-                    iteration_steps_results = []
-                    
-                    steps = workflow_config.get('steps', [])
-                    for step in steps:
-                        step_name = step.get('name', 'unnamed_step')
-                        action = step.get('action', 'custom')  # Default to custom if not specified
-                        agent_id = step.get('agent')  # NEW: Where to execute (local if None)
-                        step_iterations = int(step.get('iterations', 1))
-                        
-                        # Determine execution location
-                        exec_location = f"agent:{agent_id}" if agent_id else "local"
-                        print(f"  Executing step: {step_name} ({action}) on {exec_location}")
-                        
-                        step_results = []
-                        
-                        # NEW ARCHITECTURE: Separate WHAT (action) from WHERE (agent)
-                        # If agent is specified, execute on remote agent
-                        # If no agent, execute locally
-                        
-                        if agent_id:
-                            # ========================================
-                            # REMOTE EXECUTION (on agent)
-                            # ========================================
-                            # Any action can run on a remote agent!
-                            
-                            # Prepare code based on action type
-                            code = step.get('code', '')
-                            code_file = step.get('code_file')
-                            language = step.get('language', 'python')
-                            context = step.get('context', {})
-                            tags = step.get('tags', {})
-                            timeout = step.get('timeout')
-                            
-                            # Smart code resolution (convention over configuration)
-                            if not code and not code_file:
-                                yaml_dir = Path(self.yaml_file).parent
-                                
-                                # Option 1: Look for method in performance_scripts.py
-                                performance_scripts_path = yaml_dir / "performance_scripts.py"
-                                if performance_scripts_path.exists():
-                                    scripts_content = performance_scripts_path.read_text()
-                                    if f"def {step_name}(" in scripts_content:
-                                        code = self._extract_method_from_file(
-                                            performance_scripts_path, 
-                                            step_name
-                                        )
-                                        if code:
-                                            logger.info(f"✓ Loaded method '{step_name}' from performance_scripts.py")
-                                
-                                # Option 2: Look for step_name.py in agent_scripts/
-                                if not code:
-                                    step_file_path = yaml_dir / "agent_scripts" / f"{step_name}.py"
-                                    if step_file_path.exists():
-                                        code = step_file_path.read_text()
-                                        logger.info(f"✓ Loaded code from agent_scripts/{step_name}.py")
-                                
-                                # Option 3: Generate code based on action type
-                                if not code and action != 'custom':
-                                    code = self._generate_code_for_action(action, step)
-                                    if code:
-                                        logger.info(f"✓ Generated code for action '{action}'")
-                                
-                                # If still no code found, error
-                                if not code:
-                                    logger.error(
-                                        f"No code found for step '{step_name}'. Tried:\n"
-                                        f"  1. Method '{step_name}()' in performance_scripts.py\n"
-                                        f"  2. File 'agent_scripts/{step_name}.py'\n"
-                                        f"  3. Explicit 'code' or 'code_file' parameter\n"
-                                        f"  4. Auto-generate from action type '{action}'\n"
-                                        f"Please provide code using one of these methods."
-                                    )
-                                    continue
-                            
-                            # Load code from explicit code_file if specified
-                            elif code_file and not code:
-                                code_path = Path(code_file)
-                                if not code_path.is_absolute():
-                                    yaml_dir = Path(self.yaml_file).parent
-                                    code_path = yaml_dir / code_file
-                                
-                                if code_path.exists():
-                                    code = code_path.read_text()
-                                    logger.info(f"✓ Loaded code from {code_path}")
-                                else:
-                                    logger.error(f"Code file not found: {code_path}")
-                                    continue
-                            
-                            # Execute on remote agent
-                            try:
-                                client = await self.agent_registry.get_client(agent_id)
-                                
-                                for j in range(step_iterations):
-                                    start_t = time.time()
-                                    result = await client.execute(
-                                        code=code,
-                                        context={**context, 'action': action, 'step_config': step},
-                                        tags={**tags, 'step': step_name, 'iteration': str(j), 'action': action},
-                                        timeout=timeout
-                                    )
-                                    duration = time.time() - start_t
-                                    
-                                    step_results.append({
-                                        'duration': result.get('duration', duration),
-                                        'success': result.get('status') != 'error',
-                                        'data': result
-                                    })
-                            except Exception as e:
-                                logger.error(f"Agent execution failed for {step_name}: {e}")
-                                step_results.append({
-                                    'duration': 0,
-                                    'success': False,
-                                    'error': str(e)
-                                })
-                        
-                        else:
-                            # ========================================
-                            # LOCAL EXECUTION (on this machine)
-                            # ========================================
-                            
-                            if action == 'api_call':
-                                url = step.get('url')
-                                method = step.get('method', 'GET')
-                                body = step.get('body')
-                                headers = step.get('headers')
-                                
-                                for j in range(step_iterations):
-                                    result = await execute_api_call(
-                                        session, url, method, body, headers
-                                    )
-                                    step_results.append(result)
-                            
-                            elif action == 'k6_test':
-                                k6_config = step.get('k6_config', {})
-                                scenarios = k6_config.get('scenarios', [])
-                                options = k6_config.get('options', {})
-                                
-                                for j in range(step_iterations):
-                                    start_t = time.time()
-                                    k6_res = await self.unified_runner.run_k6_test(
-                                        f"{step_name}_{i}_{j}", 
-                                        scenarios, 
-                                        options
-                                    )
-                                    duration = time.time() - start_t
-                                    step_results.append({
-                                        'duration': duration,
-                                        'success': k6_res['status'] == 'success',
-                                        'data': k6_res
-                                    })
-
-                            elif action == 'jmeter_test':
-                                jmeter_config = step.get('jmeter_config', {})
-                                scenarios = jmeter_config.get('scenarios', [])
-                                tg_config = jmeter_config.get('thread_group_config', {})
-                                
-                                for j in range(step_iterations):
-                                    start_t = time.time()
-                                    jm_res = await self.unified_runner.run_jmeter_test(
-                                        f"{step_name}_{i}_{j}",
-                                        scenarios,
-                                        tg_config
-                                    )
-                                    duration = time.time() - start_t
-                                    step_results.append({
-                                        'duration': duration,
-                                        'success': jm_res['status'] == 'success',
-                                        'data': jm_res
-                                    })
-                            
-                            elif action == 'custom':
-                                # Custom code execution locally
-                                logger.error(f"Custom action without agent not yet supported for step: {step_name}")
-                                continue
-                            
-                            else:
-                                logger.error(f"Unknown action '{action}' for step: {step_name}")
-                                continue
-
-                        
-                        # Calculate step stats
-                        total_duration = sum(r['duration'] for r in step_results)
-                        success_count = sum(1 for r in step_results if r['success'])
-                        
-                        iteration_steps_results.append({
-                            'name': step_name,
-                            'iterations': step_iterations,
-                            'total_duration': total_duration,
-                            'success_rate': success_count / step_iterations if step_iterations > 0 else 0,
-                            'iteration_results': step_results
-                        })
-
-                        # Publish to InfluxDB
-                        if self.unified_runner.influx_publisher:
-                            self.unified_runner.influx_publisher.publish_metric(
-                                "workflow_step", 
-                                {
-                                    "duration": total_duration, 
-                                    "success_count": success_count,
-                                    "total_count": step_iterations
-                                }, 
-                                {
-                                    "step": step_name, 
-                                    "workflow": workflow_name, 
-                                    "action": action,
-                                    "iteration": str(i)
-                                }
-                            )
-                    
-                    workflow_results.append({
-                        'workflow_num': i,  # Required for report generator
-                        'iteration': i,
-                        'duration': sum(s['total_duration'] for s in iteration_steps_results),
-                        'total_duration': sum(s['total_duration'] for s in iteration_steps_results),  # Added for aggregator
-                        'steps': iteration_steps_results,
-                        'success': all(s['success_rate'] == 1.0 for s in iteration_steps_results)
-                    })
-            
-            print(f"✓ Workflow completed: {iterations} iterations")
-            
-            # Aggregate workflow results
-            aggregated = aggregate_selective_iterations(workflow_results, {})
-            
-            workflow_data = {
-                'name': workflow_config.get('name', workflow_name),
-                'total_workflows': iterations,
-                'workflow_summary': aggregated['workflow_summary'],
-                'step_breakdown': aggregated['step_breakdown'],
-                'workflow_executions': workflow_results
-            }
-            
-            # Add to runner.results
-            if 'workflows' not in self.unified_runner.results:
-                self.unified_runner.results['workflows'] = []
-            self.unified_runner.results['workflows'].append(workflow_data)
+        # 1. Group Workflows by 'group' attribute for parallel execution
+        # Logic: Contiguous workflows with the same group ID run in parallel. 
+        # Workflows without a group run sequentially.
         
-        logger.info("Workflows completed")
+        workflow_items = list(workflows.items())
+        
+        # Helper to get group key
+        def get_wf_group(item):
+            # item is (name, config)
+            return item[1].get('group')
+        
+        # Iterate through grouped workflows
+        for group_id, group_iterator in groupby(workflow_items, key=get_wf_group):
+            group_list = list(group_iterator) # [(name, config), ...]
+            
+            if group_id:
+                # Parallel Workflows
+                print(f"\n⚡ Executing Workflow Group: '{group_id}' ({len(group_list)} workflows)")
+                tasks = []
+                for wf_name, wf_config in group_list:
+                    tasks.append(self._execute_single_workflow(wf_name, wf_config, session_factory=aiohttp.ClientSession))
+                
+                await asyncio.gather(*tasks)
+            else:
+                # Sequential Workflows (No Group)
+                for wf_name, wf_config in group_list:
+                    async with aiohttp.ClientSession() as session:
+                        await self._execute_single_workflow(wf_name, wf_config, session=session)
+
+    async def _execute_single_workflow(self, workflow_name: str, workflow_config: Dict, session=None, session_factory=None):
+        """Execute a single workflow logic (extracted from _run_workflows)."""
+        from examples.run_workflow_test import execute_api_call
+        from src.aggregators.selective_iteration_aggregator import aggregate_selective_iterations
+        from itertools import groupby
+        
+        logger.info(f"Running workflow: {workflow_name}")
+        print(f"\n📊 Running workflow: {workflow_name}")
+        
+        workflow_results = []
+        iterations = int(workflow_config.get('iterations', 1))
+        
+        # Manage session lifecycle
+        local_session = False
+        if session is None and session_factory:
+            session = session_factory()
+            local_session = True
+            await session.__aenter__()
+            
+        try:
+            for i in range(iterations):
+                print(f"\n🔄 Workflow '{workflow_name}' Iteration {i+1}/{iterations}")
+                iteration_steps_results = []
+                steps = workflow_config.get('steps', [])
+                
+                # 2. Group Steps within Workflow
+                def get_step_group(step): 
+                    return step.get('group')
+
+                for group_id, step_iterator in groupby(steps, key=get_step_group):
+                    step_group = list(step_iterator)
+                    
+                    if group_id:
+                        # Parallel Steps
+                        print(f"  ⚡ Executing Step Group: '{group_id}' ({len(step_group)} steps)")
+                        tasks = []
+                        for step in step_group:
+                            # Mark as parallel execution for logging suppression/prefixing
+                            step['_parallel_context'] = True
+                            tasks.append(self._execute_step(step, session, i))
+                        
+                        group_results = await asyncio.gather(*tasks)
+                        # Filter out None results
+                        iteration_steps_results.extend([r for r in group_results if r])
+                    
+                    else:
+                        # Sequential Steps
+                        for step in step_group:
+                            result = await self._execute_step(step, session, i)
+                            if result:
+                                iteration_steps_results.append(result)
+
+                workflow_results.append({
+                    'workflow_num': i,
+                    'iteration': i,
+                    'duration': sum(s['total_duration'] for s in iteration_steps_results),
+                    'total_duration': sum(s['total_duration'] for s in iteration_steps_results),
+                    'steps': iteration_steps_results
+                })
+        
+        finally:
+            if local_session and session:
+                await session.__aexit__(None, None, None)
+
+        # Aggregate and store
+        aggregated = aggregate_selective_iterations(workflow_results, {})
+        self.test_results['workflow_results'].append(aggregated)
+        
+        # Add to runner.results for reporting
+        if 'workflows' not in self.unified_runner.results:
+            self.unified_runner.results['workflows'] = []
+            
+        workflow_data = {
+            'name': workflow_config.get('name', workflow_name),
+            'total_workflows': iterations,
+            'workflow_summary': aggregated.get('workflow_summary', {}),
+            'step_breakdown': aggregated.get('step_breakdown', {}),
+            'workflow_executions': workflow_results
+        }
+        self.unified_runner.results['workflows'].append(workflow_data)
+
+    async def _execute_step(self, step: Dict, session: Any, workflow_iteration: int) -> Optional[Dict]:
+        """Execute a single workflow step."""
+        step_name = step.get('name', 'unnamed_step')
+        action = step.get('action', 'custom')
+        agent_id = step.get('agent')
+        step_iterations = int(step.get('iterations', 1))
+        
+        # Determine execution location
+        exec_location = f"agent:{agent_id}" if agent_id else "local"
+        # Only print if not running in parallel (to avoid console scramble), or prefix
+        # For now, simplistic logging
+        if not step.get('_parallel_context'):
+             print(f"  Executing step: {step_name} ({action}) on {exec_location}")
+        
+        step_results = []
+        
+        if agent_id:
+            # REMOTE EXECUTION
+            code = step.get('code', '')
+            code_file = step.get('code_file')
+            context = step.get('context', {})
+            tags = step.get('tags', {})
+            timeout = step.get('timeout')
+            
+            # Smart resolution
+            if not code and not code_file:
+                # Reuse the extraction logic (simplified for brevity here, ideally shared)
+                yaml_dir = Path(self.yaml_file).parent
+                perf_scripts = yaml_dir / "performance_scripts.py"
+                
+                if perf_scripts.exists() and f"def {step_name}(" in perf_scripts.read_text():
+                     code = self._extract_method_from_file(perf_scripts, step_name)
+                
+                if not code:
+                    agent_script = yaml_dir / "agent_scripts" / f"{step_name}.py"
+                    if agent_script.exists():
+                        code = agent_script.read_text()
+                
+                if not code and action != 'custom':
+                    code = self._generate_code_for_action(action, step)
+                
+                if not code:
+                    logger.error(f"No code found for step '{step_name}'")
+                    return None
+
+            elif code_file and not code:
+                # Load from file
+                code_path = Path(code_file)
+                if not code_path.is_absolute():
+                     code_path = Path(self.yaml_file).parent / code_file
+                if code_path.exists():
+                    code = code_path.read_text()
+            
+            # Execute on agent
+            try:
+                client = await self.agent_registry.get_client(agent_id)
+                for j in range(step_iterations):
+                    start_t = time.time()
+                    result = await client.execute(
+                        code=code,
+                        context={**context, 'action': action, 'step_config': step},
+                        tags={**tags, 'step': step_name, 'iteration': str(j)},
+                        timeout=timeout
+                    )
+                    duration = time.time() - start_t
+                    step_results.append({
+                        'duration': result.get('duration', duration),
+                        'success': result.get('status') != 'error',
+                        'data': result
+                    })
+            except Exception as e:
+                logger.error(f"Agent execution failed for {step_name}: {e}")
+                step_results.append({'duration': 0, 'success': False, 'error': str(e)})
+
+        else:
+            # LOCAL EXECUTION
+            if action == 'api_call':
+                for j in range(step_iterations):
+                    # Re-import locally if needed or reuse execute_api_call
+                    from examples.run_workflow_test import execute_api_call
+                    res = await execute_api_call(session, step.get('url'), step.get('method', 'GET'), step.get('body'), step.get('headers'))
+                    step_results.append(res)
+            
+            elif action == 'k6_test':
+                k6_conf = step.get('k6_config', {})
+                for j in range(step_iterations):
+                    start_t = time.time()
+                    k6_res = await self.unified_runner.run_k6_test(f"{step_name}_{workflow_iteration}_{j}", k6_conf.get('scenarios', []), k6_conf.get('options', {}))
+                    step_results.append({'duration': time.time() - start_t, 'success': k6_res['status']=='success', 'data': k6_res})
+                    
+            elif action == 'jmeter_test':
+                jm_conf = step.get('jmeter_config', {})
+                for j in range(step_iterations):
+                    start_t = time.time()
+                    jm_res = await self.unified_runner.run_jmeter_test(f"{step_name}_{workflow_iteration}_{j}", jm_conf.get('scenarios', []), jm_conf.get('thread_group_config', {}))
+                    step_results.append({'duration': time.time() - start_t, 'success': jm_res['status']=='success', 'data': jm_res})
+
+        # Summarize results
+        total_duration = sum(r['duration'] for r in step_results)
+        success_count = sum(1 for r in step_results if r['success'])
+        
+        return {
+            'name': step_name,
+            'iterations': step_iterations,
+            'total_duration': total_duration,
+            'success_rate': success_count / step_iterations if step_iterations > 0 else 0,
+            'iteration_results': step_results
+        }
+            
     
     async def _generate_reports(self) -> Dict:
         """Run Playwright UI tests from YAML definition."""

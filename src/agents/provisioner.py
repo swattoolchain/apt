@@ -417,9 +417,10 @@ fi
         
         # config.json
         config_json = {
-            "name": name,
+            "agent_id": name,
             "mode": config.get('mode', 'serve'),
-            "auth_token": config.get('auth_token', ''), "port": config.get('port', 5007)
+            "auth_token": config.get('auth_token', ''),
+            "port": int(config.get('port', 5007))
         }
         (package_dir / "config.json").write_text(json.dumps(config_json, indent=2))
         
@@ -439,7 +440,8 @@ requests==2.31.0
         """Copy agent_server.py from framework"""
         # Get path to agent_server.py in the framework
         framework_root = Path(__file__).parent.parent.parent
-        agent_server_src = framework_root / "src" / "agents" / "agent_server.py"
+        # Use the Async Server implementation for better stability
+        agent_server_src = framework_root / "src" / "agents" / "agent_server_async.py"
         
         if agent_server_src.exists():
             shutil.copy(agent_server_src, package_dir / "agent_server.py")
