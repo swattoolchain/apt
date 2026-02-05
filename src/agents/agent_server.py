@@ -271,19 +271,221 @@ async def emit_metrics(metrics: Dict):
     print(f"[EMIT] Would send to {EMIT_TARGET}: {metrics}")
 
 
+# ============================================================================
+# ASYNC JOB EXECUTION (New in v4.0)
+# ============================================================================
+
+# Initialize JobManager
+from .job_manager import JobManager, JobStatus
+
+# Job manager instance (initialized on startup)
+job_manager: Optional[JobManager] = None
+
+
+class JobSubmitRequest(BaseModel):
+    """Request to submit an async job"""
+    code: str = Field(..., description="Python code to execute")
+    context: Dict[str, Any] = Field(default_factory=dict, description="Execution context variables")
+    timeout: int = Field(default=300, description="Execution timeout in seconds")
+    priority: int = Field(default=5, ge=1, le=10, description="Job priority (1-10, higher = more priority)")
+    tags: Dict[str, str] = Field(default_factory=dict, description="Tags for the job")
+
+
+class JobResponse(BaseModel):
+    """Response for job operations"""
+    job_id: str
+    status: str
+    message: Optional[str] = None
+
+
+@app.post("/jobs", response_model=JobResponse)
+async def submit_job(
+    request: JobSubmitRequest,
+    authenticated: bool = Depends(verify_token)
+):
+    """
+    Submit a job for asynchronous execution.
+    
+    Returns immediately with a job_id that can be used to poll for status.
+    """
+    if job_manager is None:
+        raise HTTPException(status_code=503, detail="Job manager not initialized")
+    
+    try:
+        job_id = job_manager.create_job(
+            code=request.code,
+            context=request.context,
+            timeout=request.timeout,
+            priority=request.priority,
+            tags=request.tags
+        )
+        
+        logger.info(f"Job submitted: {job_id} (priority={request.priority})")
+        
+        return JobResponse(
+            job_id=job_id,
+            status="pending",
+            message="Job submitted successfully"
+        )
+    except Exception as e:
+        logger.error(f"Failed to submit job: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/jobs/{job_id}")
+async def get_job_status(
+    job_id: str,
+    authenticated: bool = Depends(verify_token)
+):
+    """
+    Get the status and result of a job.
+    
+    Returns job details including status, result, error, and duration.
+    """
+    if job_manager is None:
+        raise HTTPException(status_code=503, detail="Job manager not initialized")
+    
+    job = job_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    return job
+
+
+@app.get("/jobs/{job_id}/logs")
+async def get_job_logs(
+    job_id: str,
+    authenticated: bool = Depends(verify_token)
+):
+    """
+    Get the execution logs for a job.
+    
+    Returns the log file contents as plain text.
+    """
+    if job_manager is None:
+        raise HTTPException(status_code=503, detail="Job manager not initialized")
+    
+    logs = job_manager.get_job_logs(job_id)
+    if logs is None:
+        raise HTTPException(status_code=404, detail=f"Logs for job {job_id} not found")
+    
+    return {"job_id": job_id, "logs": logs}
+
+
+@app.delete("/jobs/{job_id}")
+async def cancel_job(
+    job_id: str,
+    authenticated: bool = Depends(verify_token)
+):
+    """
+    Cancel a pending or running job.
+    
+    Returns success if the job was cancelled, error if already completed.
+    """
+    if job_manager is None:
+        raise HTTPException(status_code=503, detail="Job manager not initialized")
+    
+    success = job_manager.cancel_job(job_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Cannot cancel job {job_id} (not found or already completed)")
+    
+    return {"job_id": job_id, "status": "cancelled", "message": "Job cancelled successfully"}
+
+
+@app.get("/jobs")
+async def list_jobs(
+    status: Optional[str] = None,
+    limit: int = 100,
+    authenticated: bool = Depends(verify_token)
+):
+    """
+    List all jobs, optionally filtered by status.
+    
+    Query parameters:
+    - status: Filter by job status (pending, running, completed, failed, cancelled, timeout)
+    - limit: Maximum number of jobs to return (default: 100)
+    """
+    if job_manager is None:
+        raise HTTPException(status_code=503, detail="Job manager not initialized")
+    
+    # Convert status string to enum if provided
+    status_filter = None
+    if status:
+        try:
+            status_filter = JobStatus(status.lower())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+    
+    jobs = job_manager.list_jobs(status=status_filter, limit=limit)
+    return {"jobs": jobs, "count": len(jobs)}
+
+
+# ============================================================================
+# ROOT ENDPOINT
+# ============================================================================
+
 @app.get("/")
 async def root():
     """Root endpoint with agent information"""
+    endpoints = {
+        "health": "/health",
+        "execute": "/execute (sync)",
+        "jobs": "/jobs (async)",
+        "job_status": "/jobs/{job_id}",
+        "job_logs": "/jobs/{job_id}/logs",
+        "metrics": "/metrics" if AGENT_MODE == 'serve' else None
+    }
+    
     return {
         "agent": AGENT_NAME,
         "mode": AGENT_MODE,
         "status": "running",
-        "endpoints": {
-            "health": "/health",
-            "execute": "/execute",
-            "metrics": "/metrics" if AGENT_MODE == 'serve' else None
-        }
+        "execution_modes": ["sync", "async"],
+        "job_manager_active": job_manager is not None,
+        "endpoints": endpoints
     }
+
+
+# ============================================================================
+# STARTUP & SHUTDOWN
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize JobManager on startup"""
+    global job_manager
+    
+    try:
+        # Load execution config
+        exec_config_file = Path("config/execution_config.yml")
+        if exec_config_file.exists():
+            import yaml
+            with open(exec_config_file) as f:
+                exec_config = yaml.safe_load(f)
+            
+            # Get job queue config
+            job_queue_config = exec_config.get("job_queue", {})
+            max_concurrent = job_queue_config.get("max_concurrent_jobs", 1)
+            
+            # Initialize JobManager
+            jobs_dir = Path.home() / "qpt_agent" / "jobs"
+            job_manager = JobManager(jobs_dir=jobs_dir, max_concurrent=max_concurrent)
+            job_manager.start()
+            
+            logger.info(f"JobManager initialized: max_concurrent={max_concurrent}, jobs_dir={jobs_dir}")
+        else:
+            logger.warning("execution_config.yml not found, async mode disabled")
+    except Exception as e:
+        logger.error(f"Failed to initialize JobManager: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop JobManager on shutdown"""
+    global job_manager
+    if job_manager:
+        job_manager.stop()
+        logger.info("JobManager stopped")
 
 
 if __name__ == "__main__":
@@ -292,10 +494,11 @@ if __name__ == "__main__":
     
     print(f"""
 ╔══════════════════════════════════════════════════════════╗
-║  APT Remote Agent Server                                 ║
+║  QPT Remote Agent Server v4.0                            ║
 ║  Name: {AGENT_NAME:<47} ║
 ║  Mode: {AGENT_MODE:<47} ║
 ║  Port: {port:<47} ║
+║  Execution: Sync + Async (Job-based)                     ║
 ╚══════════════════════════════════════════════════════════╝
     """)
     
