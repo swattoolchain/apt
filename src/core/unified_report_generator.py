@@ -213,62 +213,57 @@ class UnifiedReportGenerator:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APT - Report</title>
+    <title>QPT - Performance Report</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Modern Professional Styling */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #f5f7fa;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background: #fafafa;
+            color: #1a202c;
+            -webkit-font-smoothing: antialiased;
         }
-        
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-            background: white;
-            min-height: 100vh;
-        }
-        
+
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0f172a; /* Dark Navy Blue */
             color: white;
-            padding: 20px 40px;
+            padding: 16px 32px;
+            border-bottom: 4px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        
+
         header h1 {
-            font-size: 24px;
-            margin-bottom: 4px;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: white;
+            margin: 0;
         }
         
         .subtitle {
-            opacity: 0.9;
-            font-size: 14px;
+            font-size: 13px;
+            color: #718096;
+            font-weight: 500;
+            opacity: 1;
         }
-        
-        .content {
-            padding: 24px 40px;
-        }
-        
-        /* Compact Summary */
-        .summary-compact {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        
+
         .metric-compact {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 8px;
-            padding: 12px 16px;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 16px;
             text-align: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        
+
         .metric-compact.success {
-            background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+            background: #e8f5e9; /* Very light green */
+            border-color: #c3e6cb;
+            color: #155724;
         }
         
         .metric-label-compact {
@@ -518,43 +513,176 @@ class UnifiedReportGenerator:
             font-size: 13px;
             border-top: 1px solid #e2e8f0;
         }
+    /* Dashboard Cards */
+        .summary-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-card {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            background-color: #edf2f7;
+            border-radius: 4px;
+            height: 8px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #48bb78;
+            border-radius: 4px;
+            transition: width 0.5s ease-in-out;
+        }
+        
+        /* Modern Accordion / Tree View */
+        details {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            margin-bottom: 12px;
+        }
+
+        details > summary {
+            padding: 16px 20px;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            background: #fff;
+            font-weight: 600;
+            color: #2d3748;
+            transition: background 0.2s;
+            position: relative;
+        }
+        
+        details > summary:hover {
+            background: #f8f9fa;
+        }
+        
+        /* Custom Chevron using SVG or logic would be standard, 
+           but CSS borders are robust for single-file text templates */
+        details > summary::before {
+            content: '▶';
+            display: inline-block;
+            font-size: 10px;
+            margin-right: 12px;
+            transition: transform 0.2s;
+            color: #718096;
+        }
+
+        details[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .workflow-content {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #fff;
+        }
+        
+        /* Nested Tree Style (Indent with Line) */
+        details.sub-details {
+            margin-top: 16px;
+            margin-left: 12px;
+            border-left: 2px solid #cbd5e0;
+            border-radius: 4px;
+            background: #fcfcfc;
+        }
+        
+        details.sub-details > summary {
+            background: #f7fafc;
+            padding: 12px 16px;
+            font-size: 13px;
+        }
+        
+        details.sub-details .panel {
+            padding: 12px;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎯 APT - Report</h1>
+            <div style="display: flex; align-items: center;">
+                <img src="https://qa.hub.quvia.ai/assets/images/neuron_logo.svg" alt="Neuron Logo" style="height: 32px; margin-right: 16px;">
+                <h1>QPT - Performance Report</h1>
+            </div>
             <div class="subtitle">{{ timestamp }}</div>
         </header>
         
         <div class="content">
-            <!-- Compact Summary -->
-            <div class="summary-compact">
-                <div class="metric-compact">
-                    <div class="metric-label-compact">Tests</div>
-                    <div class="metric-value-compact">{{ summary.total_tests }}</div>
+            <!-- Dashboard Summary -->
+            <div class="summary-dashboard">
+                <div class="dashboard-card">
+                    <div>
+                        <div class="card-label">Total Tests</div>
+                        <div class="card-value">{{ summary.total_tests }}</div>
+                    </div>
                 </div>
                 
-                <div class="metric-compact success">
-                    <div class="metric-label-compact">Success</div>
-                    <div class="metric-value-compact">{{ "%.0f"|format(summary.success_rate * 100) }}<span class="metric-unit-compact">%</span></div>
+                <div class="dashboard-card">
+                    <div>
+                        <div class="card-label">Success Rate</div>
+                        <div class="card-value">{{ "%.0f"|format(summary.success_rate * 100) }}%</div>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: {{ summary.success_rate * 100 }}%"></div>
+                        </div>
+                    </div>
                 </div>
                 
                 {% if summary.ui_tests > 0 %}
-                <div class="metric-compact">
-                    <div class="metric-label-compact">UI Tests</div>
-                    <div class="metric-value-compact">{{ summary.ui_tests }}</div>
+                <div class="dashboard-card">
+                    <div>
+                        <div class="card-label">UI Tests</div>
+                        <div class="card-value">{{ summary.ui_tests }}</div>
+                    </div>
                 </div>
                 {% endif %}
                 
                 {% if summary.api_tests > 0 %}
-                <div class="metric-compact">
-                    <div class="metric-label-compact">API Tests</div>
-                    <div class="metric-value-compact">{{ summary.api_tests }}</div>
+                <div class="dashboard-card">
+                    <div>
+                        <div class="card-label">API Tests</div>
+                        <div class="card-value">{{ summary.api_tests }}</div>
+                    </div>
                 </div>
                 {% endif %}
-                
-
             </div>
             
             <!-- Tabs -->
@@ -845,181 +973,209 @@ class UnifiedReportGenerator:
             <!-- Tab Content: Workflows -->
             {% if workflows|length > 0 %}
             <div id="workflows-tab" class="tab-content {% if grouped.playwright|length == 0 and grouped.k6|length == 0 and grouped.jmeter|length == 0 %}active{% endif %}">
+                
+                <!-- Group By Controls -->
+                <div class="controls" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: flex-end; padding: 10px; background: white; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <label style="font-size: 13px; font-weight: 500; color: #4a5568; margin-right: 12px;">Group Workflows By:</label>
+                    <select id="groupBySelect" onchange="groupWorkflows()" style="padding: 6px 12px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 13px; color: #2d3748; background: white;">
+                        <option value="none">None (List)</option>
+                        <option value="tags">Tags</option>
+                        <option value="agent">Agent</option>
+                    </select>
+                </div>
+
+                <div id="workflows-container">
                 {% for workflow in workflows %}
-                <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h3 style="margin: 0; color: #2d3748;">{{ workflow.name }}</h3>
-                        <span class="status-badge success">{{ workflow.total_workflows }} workflows</span>
-                    </div>
+                {% set agent_set = [] %}
+                {% for s in workflow.step_breakdown.values() %}{% if s.agent and s.agent not in agent_set %}{% set _ = agent_set.append(s.agent) %}{% endif %}{% endfor %}
+                {% set primary_agent = agent_set[0] if agent_set else 'Local' %}
+                
+                <details class="workflow-details" 
+                         data-tags="{{ workflow.tags|join(',') }}" 
+                         data-agent="{{ primary_agent }}">
+                    <summary>
+                        <span>{{ workflow.name }}</span>
+                        <div>
+                            <span style="font-size: 13px; color: #718096; margin-right: 12px; font-weight: normal;">Avg: {{ "%.2f"|format(workflow.workflow_summary.avg_duration) }}s</span>
+                            <span class="status-badge success">(x {{ workflow.total_workflows }})</span>
+                        </div>
+                    </summary>
                     
-                    <!-- Workflow Summary -->
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
-                        <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Avg Duration</div>
-                            <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.avg_duration) }}s</div>
-                        </div>
-                        <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Min Duration</div>
-                            <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.min_duration) }}s</div>
-                        </div>
-                        <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Max Duration</div>
-                            <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.max_duration) }}s</div>
-                        </div>
-                        <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Total Steps</div>
-                            <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ workflow.step_breakdown|length }}</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Step Breakdown Table -->
-                    <h4 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px;">📋 Step-by-Step Breakdown</h4>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
-                        <thead>
-                            <tr style="background: #f7fafc; border-bottom: 2px solid #e2e8f0;">
-                                <th style="padding: 10px; text-align: left; font-weight: 600; color: #4a5568;">Step</th>
-                                <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Iterations</th>
-                                <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Avg Time</th>
-                                <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Success</th>
-                                <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Total Time</th>
-                                <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for step_name, step_data in workflow.step_breakdown.items() %}
-                            <tr style="border-bottom: 1px solid #e2e8f0; {% if step_data.iteration_config.iterations_per_workflow > 1 %}background: #fffbeb;{% endif %}">
-                                <td style="padding: 10px; font-weight: 500; color: #2d3748;">
-                                    {{ step_name }}
-                                    {% if step_data.iteration_config.iterations_per_workflow > 1 %}
-                                    <span style="background: #fbbf24; color: #78350f; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 6px;">HIGH ITERATION</span>
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 10px; text-align: center; font-family: monospace; color: #4a5568;">
-                                    {{ step_data.iteration_config.display }}
-                                </td>
-                                <td style="padding: 10px; text-align: right; color: #2d3748;">
-                                    {{ "%.3f"|format(step_data.timing.avg_duration) }}s
-                                </td>
-                                <td style="padding: 10px; text-align: right;">
-                                    <span style="color: {% if step_data.success.success_rate >= 0.95 %}#10b981{% else %}#ef4444{% endif %}; font-weight: 600;">
-                                        {{ step_data.success.success_percentage }}
-                                    </span>
-                                </td>
-                                <td style="padding: 10px; text-align: right; color: #4a5568;">
-                                    {{ "%.2f"|format(step_data.timing.total_time) }}s
-                                </td>
-                                <td style="padding: 10px; text-align: center;">
-                                    {% if step_data.iteration_config.iterations_per_workflow > 1 %}
-                                    <button class="expand-btn" onclick="toggleDetails('workflow-{{ step_name }}-{{ loop.index }}')" style="font-size: 11px; padding: 4px 8px;">📊 Details</button>
-                                    {% else %}
-                                    <span style="color: #cbd5e0; font-size: 11px;">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <!-- Detailed Metrics for High-Iteration Steps -->
-                            {% if step_data.iteration_config.iterations_per_workflow > 1 %}
-                            <tr>
-                                <td colspan="6" style="padding: 0;">
-                                    <div id="workflow-{{ step_name }}-{{ loop.index }}" class="details-section">
-                                        <div style="padding: 16px; background: #fffbeb;">
-                                            <strong style="font-size: 12px; color: #2d3748;">Detailed Metrics: {{ step_name }}</strong>
-                                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
-                                                <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                    <div style="font-size: 10px; color: #718096;">Total Iterations</div>
-                                                    <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ step_data.iteration_config.total_iterations }}</div>
-                                                </div>
-                                                <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                    <div style="font-size: 10px; color: #718096;">P95</div>
-                                                    <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p95) }}s</div>
-                                                </div>
-                                                <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                    <div style="font-size: 10px; color: #718096;">P99</div>
-                                                    <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p99) }}s</div>
-                                                </div>
-                                                <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                    <div style="font-size: 10px; color: #718096;">Throughput</div>
-                                                    <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(step_data.throughput.iterations_per_second) }} req/s</div>
-                                                </div>
-                                                <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                    <div style="font-size: 10px; color: #718096;">Std Dev</div>
-                                                    <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.std_dev) }}s</div>
-                                                </div>
-                                                <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                    <div style="font-size: 10px; color: #718096;">Median</div>
-                                                    <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.median_duration) }}s</div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Performance Degradation Warning -->
-                                            {% if step_data.degradation and step_data.degradation.degradation_detected %}
-                                            <div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
-                                                <div style="font-size: 11px; font-weight: 600; color: #991b1b; margin-bottom: 4px;">⚠️ Performance Degradation Detected</div>
-                                                <div style="font-size: 11px; color: #7f1d1d;">
-                                                    Performance degrades by {{ "%.1f"|format(step_data.degradation.degradation_percentage) }}% from iteration 1 to {{ step_data.iteration_config.iterations_per_workflow }}.
-                                                    First avg: {{ "%.3f"|format(step_data.degradation.first_iteration_avg) }}s, 
-                                                    Last avg: {{ "%.3f"|format(step_data.degradation.last_iteration_avg) }}s
-                                                </div>
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endif %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    
-                    <!-- Per-Workflow Results (Accordion) -->
-                    {% if workflow.workflow_executions %}
-                    <h4 style="margin: 20px 0 12px 0; color: #2d3748; font-size: 14px;">🔄 Individual Workflow Executions</h4>
-                    {% for wf_exec in workflow.workflow_executions %}
-                    <div style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; overflow: hidden;">
-                        <button class="accordion" onclick="toggleAccordion('wf-{{ loop.index }}-exec-{{ loop.index }}')">
-                                <span>Workflow #{{ loop.index }} - {{ "%.2f"|format(wf_exec.total_duration|default(wf_exec.duration)) }}s</span>
-                                <span class="badge {{ 'badge-success' if wf_exec.success else 'badge-danger' }}">{{ 'PASS' if wf_exec.success else 'FAIL' }}</span>
-                            </button>
-                            <div id="wf-{{ loop.index }}-exec-{{ loop.index }}" class="panel">
-                            <div style="padding: 16px; background: white;">
-                                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                                    <thead>
-                                        <tr style="background: #f7fafc; border-bottom: 1px solid #e2e8f0;">
-                                            <th style="padding: 8px; text-align: left; font-weight: 600; color: #4a5568;">Step</th>
-                                            <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;">Iterations</th>
-                                            <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;">Duration</th>
-                                            <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;">Success Rate</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for step in wf_exec.steps %}
-                                        <tr style="border-bottom: 1px solid #f7fafc;">
-                                            <td style="padding: 8px; color: #2d3748;">{{ step.name }}</td>
-                                            <td style="padding: 8px; text-align: right; color: #4a5568;">{{ step.iterations }}</td>
-                                            <td style="padding: 8px; text-align: right; color: #2d3748;">{{ "%.3f"|format(step.total_duration) }}s</td>
-                                            <td style="padding: 8px; text-align: right;">
-                                                <span style="color: {% if step.success_rate >= 0.95 %}#10b981{% else %}#ef4444{% endif %}; font-weight: 600;">
-                                                    {{ "%.1f"|format(step.success_rate * 100) }}%
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                    <div class="workflow-content">
+                        <!-- Workflow Summary -->
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                            <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Avg Duration</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.avg_duration) }}s</div>
+                            </div>
+                            <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Min Duration</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.min_duration) }}s</div>
+                            </div>
+                            <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Max Duration</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.max_duration) }}s</div>
+                            </div>
+                            <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
+                                <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Total Steps</div>
+                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ workflow.step_breakdown|length }}</div>
                             </div>
                         </div>
+                        
+                        <!-- Step Breakdown Table -->
+                        <h4 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px;">📋 Step-by-Step Breakdown</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
+                            <thead>
+                                <tr style="background: #f7fafc; border-bottom: 2px solid #e2e8f0;">
+                                    <th style="padding: 10px; text-align: left; font-weight: 600; color: #4a5568;">Step</th>
+                                    <th style="padding: 10px; text-align: left; font-weight: 600; color: #4a5568;">Agent</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Iterations</th>
+                                    <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Avg Time</th>
+                                    <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Success</th>
+                                    <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Total Time</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for step_name, step_data in workflow.step_breakdown.items() %}
+                                <tr style="border-bottom: 1px solid #e2e8f0; {% if step_data.iteration_config.total_iterations > 1 %}background: #fffbeb;{% endif %}">
+                                    <td style="padding: 10px; font-weight: 500; color: #2d3748;">
+                                        {{ step_name }}
+                                    </td>
+                                    <td style="padding: 10px; color: #4a5568;">
+                                        <span class="tool-badge" style="background: #e2e8f0; color: #4a5568; font-weight: normal;">{{ step_data.agent }}</span>
+                                    </td>
+                                    <td style="padding: 10px; text-align: center; font-family: monospace; color: #4a5568;">
+                                        {{ step_data.iteration_config.display }}
+                                    </td>
+                                    <td style="padding: 10px; text-align: right; color: #2d3748;">
+                                        {{ "%.3f"|format(step_data.timing.avg_duration) }}s
+                                    </td>
+                                    <td style="padding: 10px; text-align: right;">
+                                        <span style="color: {% if step_data.success.success_rate >= 0.95 %}#10b981{% else %}#ef4444{% endif %}; font-weight: 600;">
+                                            {{ step_data.success.success_percentage }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 10px; text-align: right; color: #4a5568;">
+                                        {{ "%.2f"|format(step_data.timing.total_time) }}s
+                                    </td>
+                                    <td style="padding: 10px; text-align: center;">
+                                        {% if step_data.iteration_config.total_iterations > 1 %}
+                                        <button class="expand-btn" onclick="toggleDetails(this)" style="font-size: 11px; padding: 4px 8px;">📊 Details</button>
+                                        {% else %}
+                                        <span style="color: #cbd5e0; font-size: 11px;">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <!-- Detailed Metrics for High-Iteration Steps -->
+                                {% if step_data.iteration_config.total_iterations > 1 %}
+                                <tr>
+                                    <td colspan="7" style="padding: 0;">
+                                        <div id="workflow-{{ step_name }}-{{ loop.index }}" class="details-section">
+                                            <div style="padding: 16px; background: #fffbeb;">
+                                                <strong style="font-size: 12px; color: #2d3748;">Detailed Metrics: {{ step_name }}</strong>
+                                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
+                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                        <div style="font-size: 10px; color: #718096;">Total Iterations</div>
+                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ step_data.iteration_config.total_iterations }}</div>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                        <div style="font-size: 10px; color: #718096;">P95</div>
+                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p95) }}s</div>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                        <div style="font-size: 10px; color: #718096;">P99</div>
+                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p99) }}s</div>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                        <div style="font-size: 10px; color: #718096;">Throughput</div>
+                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(step_data.throughput.iterations_per_second) }} req/s</div>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                        <div style="font-size: 10px; color: #718096;">Std Dev</div>
+                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.std_dev) }}s</div>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                        <div style="font-size: 10px; color: #718096;">Median</div>
+                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.median_duration) }}s</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Performance Degradation Warning -->
+                                                {% if step_data.degradation and step_data.degradation.degradation_detected %}
+                                                <div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                                                    <div style="font-size: 11px; font-weight: 600; color: #991b1b; margin-bottom: 4px;">⚠️ Performance Degradation Detected</div>
+                                                    <div style="font-size: 11px; color: #7f1d1d;">
+                                                        Performance degrades by {{ "%.1f"|format(step_data.degradation.degradation_percentage) }}% from iteration 1 to {{ step_data.iteration_config.iterations_per_workflow }}.
+                                                        First avg: {{ "%.3f"|format(step_data.degradation.first_iteration_avg) }}s, 
+                                                        Last avg: {{ "%.3f"|format(step_data.degradation.last_iteration_avg) }}s
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        
+                        <!-- Per-Workflow Results (Accordion) -->
+                        {% if workflow.workflow_executions and workflow.total_workflows > 1 %}
+                        <details class="sub-details">
+                            <summary>🔄 View Individual Workflow Executions (x{{ workflow.total_workflows }})</summary>
+                            <div style="padding: 10px;">
+                            {% for wf_exec in workflow.workflow_executions %}
+                            <div style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; overflow: hidden;">
+                                <button class="accordion" onclick="toggleAccordion('wf-{{ loop.index }}-exec-{{ loop.index }}')">
+                                        <span>Workflow #{{ loop.index }} - {{ "%.2f"|format(wf_exec.total_duration|default(wf_exec.duration)) }}s</span>
+                                        <span class="badge {{ 'badge-success' if wf_exec.success else 'badge-danger' }}">{{ 'PASS' if wf_exec.success else 'FAIL' }}</span>
+                                    </button>
+                                    <div id="wf-{{ loop.index }}-exec-{{ loop.index }}" class="panel">
+                                    <div style="padding: 16px; background: white;">
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                            <thead>
+                                                <tr style="background: #f7fafc; border-bottom: 1px solid #e2e8f0;">
+                                                    <th style="padding: 8px; text-align: left; font-weight: 600; color: #4a5568;">Step</th>
+                                                    <th style="padding: 8px; text-align: left; font-weight: 600; color: #4a5568;">Agent</th>
+                                                    <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;">Iterations</th>
+                                                    <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;">Duration</th>
+                                                    <th style="padding: 8px; text-align: right; font-weight: 600; color: #4a5568;">Success Rate</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for step in wf_exec.steps %}
+                                                <tr style="border-bottom: 1px solid #f7fafc;">
+                                                    <td style="padding: 8px; color: #2d3748;">{{ step.name }}</td>
+                                                    <td style="padding: 8px; color: #4a5568;">
+                                                        <span class="tool-badge" style="background: #e2e8f0; color: #4a5568; font-weight: normal;">{{ step.agent }}</span>
+                                                    </td>
+                                                    <td style="padding: 8px; text-align: right; color: #4a5568;">{{ step.iterations }}</td>
+                                                    <td style="padding: 8px; text-align: right; color: #2d3748;">{{ "%.3f"|format(step.total_duration) }}s</td>
+                                                    <td style="padding: 8px; text-align: right;">
+                                                        <span style="color: {% if step.success_rate >= 0.95 %}#10b981{% else %}#ef4444{% endif %}; font-weight: 600;">
+                                                            {{ "%.1f"|format(step.success_rate * 100) }}%
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    </div>
+                            </div>
+                            {% endfor %}
+                            </div>
+                        </details>
+                        {% endif %}
                     </div>
-                    {% endfor %}
-                    {% endif %}
-                </div>
+                </details>
                 {% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
-        
-        <footer>
-            <p>APT - Quvia Performance Toolkit | Powered by Playwright + k6 + JMeter</p>
-            <p style="margin-top: 4px; font-size: 11px;">{{ timestamp }}</p>
-        </footer>
     </div>
     
     <script>
@@ -1037,9 +1193,118 @@ class UnifiedReportGenerator:
             event.target.classList.add('active');
         }
         
-        function toggleDetails(id) {
-            const details = document.getElementById(id);
-            details.classList.toggle('show');
+        function toggleDetails(btn) {
+            const tr = btn.closest('tr');
+            const nextTr = tr.nextElementSibling;
+            
+            if (nextTr) {
+                const detailsSection = nextTr.querySelector('.details-section');
+                if (detailsSection) {
+                    detailsSection.classList.toggle('show');
+                    
+                    // Toggle Button Text
+                    if (detailsSection.classList.contains('show')) {
+                        btn.innerHTML = '📉 Hide Details';
+                        btn.style.background = '#4a5568';
+                    } else {
+                        btn.innerHTML = '📊 View Details';
+                        btn.style.background = '#667eea';
+                    }
+                }
+            }
+        }
+
+        function toggleAccordion(id) {
+            const panel = document.getElementById(id);
+            if (panel.style.display === "block") {
+                panel.style.display = "none";
+            } else {
+                panel.style.display = "block";
+            }
+        }
+        
+        function groupWorkflows() {
+            const container = document.getElementById('workflows-container');
+            const mode = document.getElementById('groupBySelect').value;
+            
+            // 1. Flatten: Find all workflow details, whether directly in container or in subgroups
+            const allDetails = Array.from(document.querySelectorAll('.workflow-details'));
+            
+            // Clear current view
+            container.innerHTML = '';
+            
+            if (mode === 'none') {
+                allDetails.forEach(d => container.appendChild(d));
+                return;
+            }
+            
+            // 2. Grouping
+            const groups = {};
+            
+            allDetails.forEach(d => {
+                let keys = [];
+                let rawValue = d.dataset[mode];
+                
+                if (mode === 'tags') {
+                    if (!rawValue || rawValue.trim() === '') {
+                        keys.push('No Tags');
+                    } else {
+                        // Split tags by comma, trim, and normalize case
+                        keys = rawValue.toLowerCase().split(',').map(t => t.trim()).filter(t => t !== '');
+                        if (keys.length === 0) keys.push('No Tags');
+                    }
+                } else {
+                    // Standard single-value grouping (Agent, etc.)
+                    let key = rawValue;
+                    if (!key || key.trim() === '') key = 'Unspecified';
+                    keys.push(key);
+                }
+                
+                // Add workflow to each identified group
+                keys.forEach(k => {
+                    // Format key
+                    let groupKey = k.charAt(0).toUpperCase() + k.slice(1);
+                    
+                    if (!groups[groupKey]) groups[groupKey] = [];
+                    
+                    // IMPORTANT: If a workflow belongs to multiple groups, we must clone it
+                    // for subsequent groups so it can appear in multiple places.
+                    // However, 'd' is a live DOM element.
+                    // We'll store the element reference. In the render loop, we'll clone if needed.
+                    groups[groupKey].push(d);
+                });
+            });
+            
+            // 3. Render Groups
+            Object.keys(groups).sort().forEach(groupName => {
+                const groupDetails = document.createElement('details');
+                groupDetails.open = true; // Default to open
+                groupDetails.style.marginBottom = '20px';
+                groupDetails.style.border = '1px solid #e2e8f0';
+                groupDetails.style.borderRadius = '8px';
+                groupDetails.style.background = '#f8fafc';
+                
+                const summary = document.createElement('summary');
+                summary.innerHTML = `<span style="font-size:14px; font-weight:600; color:#2d3748;">${groupName}</span> <span style="font-size:12px;color:#718096;font-weight:normal; margin-left:8px;">(${groups[groupName].length} workflows)</span>`;
+                summary.style.padding = '12px 16px';
+                summary.style.cursor = 'pointer';
+                summary.style.borderBottom = '1px solid #e2e8f0';
+                summary.style.listStyle = 'none';
+                
+                groupDetails.appendChild(summary);
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.style.padding = '16px';
+                
+                groups[groupName].forEach(d => {
+                    // Clone the node to allow it to exist in multiple groups
+                    contentDiv.appendChild(d.cloneNode(true)); 
+                });
+                
+                groupDetails.appendChild(contentDiv);
+                
+                container.appendChild(groupDetails);
+            });
         }
     </script>
 </body>

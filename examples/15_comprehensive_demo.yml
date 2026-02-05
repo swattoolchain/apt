@@ -39,7 +39,7 @@ workflows:
   # GROUP A: PARALLEL LOAD TESTING
   # Running JMeter (Declarative) and k6 (File-Based) simultaneously
   # ──────────────────────────────────────────────────────────────────
-  parallel_load_phase_us:
+  parallel_load_phase_us: # sanity, load
     group: "global_load_attack"
     steps:
       - name: jmeter_declarative_load
@@ -55,7 +55,7 @@ workflows:
               url: "https://httpbin.org/get"
               method: "GET"
 
-  parallel_load_phase_eu:
+  parallel_load_phase_eu: # load
     group: "global_load_attack"
     steps:
       - name: k6_file_based_load
@@ -66,7 +66,7 @@ workflows:
   # ──────────────────────────────────────────────────────────────────
   # GROUP B: SMART RESOLUTION & MAINTENANCE (Sequential)
   # ──────────────────────────────────────────────────────────────────
-  maintenance_flow:
+  maintenance_flow: # maintenance
     iterations: 5
     steps:
       # 1. Method Resolution: Finds 'custom_validation' in examples/performance_scripts.py

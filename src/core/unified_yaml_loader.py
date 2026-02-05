@@ -379,14 +379,51 @@ except Exception as e:
 
 
     
-    async def run_all_tests(self) -> Dict:
+    def _extract_inline_tags(self) -> Dict[str, List[str]]:
+        """
+        Extract tags from inline YAML comments.
+        Format: key: value # tag1, tag2
+        
+        Returns:
+            Dict mapping workflow/test names to list of tags.
+        """
+        tag_map = {}
+        try:
+            import re
+            content = self.yaml_file.read_text()
+            
+            # Regex to capture: key: ... # tags
+            # Matches: "  workflow_name: # sanity, load"
+            # We assume unique keys for workflows
+            pattern = re.compile(r'^\s*([\w\-]+):\s*.*#\s*(.*)$', re.MULTILINE)
+            
+            for match in pattern.finditer(content):
+                key = match.group(1).strip()
+                tag_str = match.group(2).strip()
+                if tag_str:
+                    tags = [t.strip().lower() for t in tag_str.split(',') if t.strip()]
+                    tag_map[key] = tags
+                    
+            return tag_map
+        except Exception as e:
+            logger.warning(f"Failed to extract inline tags: {e}")
+            return {}
+
+    async def run_all_tests(self, include_tags: set = None, exclude_tags: set = None) -> Dict:
         """
         Run all tests defined in the YAML file.
         
+        Args:
+            include_tags: Set of tags to include (if None, include all)
+            exclude_tags: Set of tags to exclude
+            
         Returns:
             Dictionary with all test results
         """
         logger.info(f"Running unified test suite: {self.test_info.get('test_suite_name', 'Unnamed')}")
+        
+        # Parse tags
+        self.workflow_tags = self._extract_inline_tags()
         
         # 1. IMPLICIT PREREQUISITE: Agent Health Check and Discovery
         await self._ensure_agents_healthy()
@@ -414,7 +451,7 @@ except Exception as e:
             
             # Run Workflows
             if 'workflows' in self.definition:
-                await self._run_workflows()
+                await self._run_workflows(include_tags, exclude_tags)
             
             # Generate reports
             return await self._generate_reports()
@@ -520,8 +557,8 @@ except Exception as e:
             logger.error(f"Failed to deploy agent '{agent_id}': {e}")
             raise
 
-    async def _run_workflows(self):
-        """Run workflows from YAML definition with Parallel Group support."""
+    async def _run_workflows(self, include_tags: set = None, exclude_tags: set = None):
+        """Run workflows from YAML definition with Parallel Group support and Tag Filtering."""
         logger.info("Running workflows...")
         
         import aiohttp
@@ -529,8 +566,31 @@ except Exception as e:
         from src.aggregators.selective_iteration_aggregator import aggregate_selective_iterations
         from itertools import groupby
         
-        workflows = self.definition.get('workflows', {})
+        all_workflows = self.definition.get('workflows', {})
         
+        # FILTER WORKFLOWS BASED ON TAGS
+        workflows = {}
+        for name, config in all_workflows.items():
+            tags = set(self.workflow_tags.get(name, []))
+            
+            # Check Include
+            if include_tags and not tags.intersection(include_tags):
+                # If include_tags is specified, but no intersection, skip
+                continue
+                
+            # Check Exclude
+            if exclude_tags and tags.intersection(exclude_tags):
+                continue
+                
+            workflows[name] = config
+            # Attach tags to config for reporting
+            config['tags'] = list(tags)
+
+        if not workflows:
+            logger.warning("No workflows matched the tag criteria.")
+            print("⚠️ No workflows matched the tag criteria.")
+            return
+
         # 1. Group Workflows by 'group' attribute for parallel execution
         # Logic: Contiguous workflows with the same group ID run in parallel. 
         # Workflows without a group run sequentially.
@@ -559,7 +619,7 @@ except Exception as e:
                 for wf_name, wf_config in group_list:
                     async with aiohttp.ClientSession() as session:
                         await self._execute_single_workflow(wf_name, wf_config, session=session)
-
+            
     async def _execute_single_workflow(self, workflow_name: str, workflow_config: Dict, session=None, session_factory=None):
         """Execute a single workflow logic (extracted from _run_workflows)."""
         from examples.run_workflow_test import execute_api_call
@@ -634,6 +694,7 @@ except Exception as e:
             
         workflow_data = {
             'name': workflow_config.get('name', workflow_name),
+            'tags': workflow_config.get('tags', []),
             'total_workflows': iterations,
             'workflow_summary': aggregated.get('workflow_summary', {}),
             'step_breakdown': aggregated.get('step_breakdown', {}),
@@ -744,6 +805,7 @@ except Exception as e:
         
         return {
             'name': step_name,
+            'agent': agent_id or 'local',
             'iterations': step_iterations,
             'total_duration': total_duration,
             'success_rate': success_count / step_iterations if step_iterations > 0 else 0,

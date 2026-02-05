@@ -28,6 +28,7 @@ class SelectiveIterationMetrics:
             if step_name not in self.step_iterations:
                 self.step_iterations[step_name] = []
                 self.step_configs[step_name] = {
+                    'agent': step.get('agent', 'local'),
                     'iterations_per_workflow': step.get('iterations', 1),
                     'total_iterations': 0
                 }
@@ -87,6 +88,7 @@ def aggregate_selective_iterations(
         sorted_durations = sorted(durations)
         
         step_breakdown[step_name] = {
+            'agent': config_info['agent'],
             'iteration_config': {
                 'iterations_per_workflow': iterations_per_workflow,
                 'total_workflows': len(metrics.workflows),
@@ -117,14 +119,14 @@ def aggregate_selective_iterations(
         }
         
         # Performance degradation analysis (for steps with multiple iterations)
-        if iterations_per_workflow > 1:
-            degradation = analyze_performance_degradation(iterations, iterations_per_workflow)
+        if total_iterations > 1:
+            degradation = analyze_performance_degradation(iterations, iterations_per_workflow if iterations_per_workflow > 1 else len(metrics.workflows))
             step_breakdown[step_name]['degradation'] = degradation
     
-    # Identify high-iteration steps (steps with >1 iteration)
+    # Identify high-iteration steps (steps with >1 total iteration)
     high_iteration_steps = {
         name: data for name, data in step_breakdown.items()
-        if data['iteration_config']['iterations_per_workflow'] > 1
+        if data['iteration_config']['total_iterations'] > 1
     }
     
     # Generate detailed analysis for high-iteration steps

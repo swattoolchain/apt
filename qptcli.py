@@ -272,18 +272,29 @@ def setup(config):
 
 @cli.command()
 @click.argument('test_file', type=click.Path(exists=True))
-def run(test_file):
+@click.option('--tags', help='Comma-separated tags to include (e.g., "sanity,load")')
+@click.option('--exclude-tags', help='Comma-separated tags to exclude')
+def run(test_file, tags, exclude_tags):
     """Run a test file (YAML or Python)"""
     test_path = Path(test_file)
     
     if test_path.suffix in ['.yml', '.yaml']:
         click.echo(f"🚀 Running Unified QPT Test: {test_file}")
+        if tags:
+            click.echo(f"   Including tags: {tags}")
+        if exclude_tags:
+            click.echo(f"   Excluding tags: {exclude_tags}")
+            
         try:
             import asyncio
             from src.core.unified_yaml_loader import UnifiedYAMLTestRunner
             
+            # Parse tags
+            include_set = set(tags.split(',')) if tags else None
+            exclude_set = set(exclude_tags.split(',')) if exclude_tags else set()
+            
             runner = UnifiedYAMLTestRunner(test_file)
-            asyncio.run(runner.run_all_tests())
+            asyncio.run(runner.run_all_tests(include_tags=include_set, exclude_tags=exclude_set))
             
             click.echo("\n✅ Test execution completed.")
         except Exception as e:
