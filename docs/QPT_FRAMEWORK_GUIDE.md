@@ -205,8 +205,34 @@ pytest examples/my_test.yml --html=report.html --self-contained-html
 ### **Via QPT CLI** (if implemented)
 
 ```bash
-python3 qptcli.py run examples/my_test.yml
+python3 qptcli.py run examples/15_comprehensive_demo.yml
 ```
+
+---
+
+## ⚡ Parallel Execution & Smart Resolution
+
+### **Parallel Groups**
+
+To run multiple workflows or steps in parallel, assign them the same `group` ID.
+
+```yaml
+workflows:
+  us_load:
+    group: "attack_phase"  # Runs with eu_load
+    steps: [...]
+    
+  eu_load:
+    group: "attack_phase"  # Runs with us_load
+    steps: [...]
+```
+
+### **Smart Code Resolution**
+
+The `agent_execute` action can automatically find code to run:
+1. **Inline**: Use the `code: |` block.
+2. **Method Match**: Looks for `def <step_name>` in `performance_scripts.py`.
+3. **File Match**: Looks for `<step_name>.py` in `agent_scripts/`.
 
 ---
 
@@ -362,9 +388,72 @@ curl http://localhost:9091/health
 
 ## 📚 Examples
 
-### **Multi-Agent Distributed Test**
+### **Comprehensive Feature Showcase**
 
-See: `examples/multi_agent_hybrid_test.yml`
+This example (`examples/15_comprehensive_demo.yml`) demonstrates the full power of QPT:
+
+```yaml
+# QPT Comprehensive Demo
+test_info:
+  test_suite_name: "QPT Full Feature Showcase"
+  description: "Demonstrating Parallelism, Smart Resolution, and Multi-Mode Agents"
+  version: "3.0"
+  test_suite_type: "unified"
+
+agents:
+  jmeter-server:
+    endpoint: "http://172.31.128.182:5007"
+    auth_token: "default_token"
+    deploy_info: { type: "shell", target: "ubuntu@172.31.128.182", ssh_key: "~/pems/world-cloud.pem", remote_dir: "/home/ubuntu/jmeter-agent" }
+  
+  k6-server:
+    endpoint: "http://172.31.128.185:5007"
+    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
+    deploy_info: { type: "shell", target: "ubuntu@172.31.128.185", ssh_key: "~/pems/world-cloud.pem", remote_dir: "/home/ubuntu/k6-agent" }
+
+workflows:
+  # ⚡ PARALLEL LOAD TESTING
+  parallel_load_phase_us:
+    group: "global_load_attack"
+    steps:
+      - name: jmeter_declarative_load
+        action: jmeter_test
+        agent: jmeter-server
+        jmeter_config:
+          thread_group_config: { threads: 5, duration: 5 }
+          scenarios: [{ name: "Declarative API", url: "https://httpbin.org/get", method: "GET" }]
+
+  parallel_load_phase_eu:
+    group: "global_load_attack"
+    steps:
+      - name: k6_file_based_load
+        action: k6_test
+        agent: k6-server
+        k6_script_file: "examples/scripts/my_k6_test.js"
+
+  # 🧠 SMART RESOLUTION (Sequential)
+  maintenance_flow:
+    steps:
+      # Finds 'custom_validation' in examples/performance_scripts.py
+      - name: custom_validation
+        action: agent_execute
+        agent: jmeter-server
+        context: { env: "production" }
+
+      # Finds 'remote_cleanup.py' in examples/agent_scripts/
+      - name: remote_cleanup
+        action: agent_execute
+        agent: k6-server
+      
+      # Inline Code
+      - name: inline_check
+        action: agent_execute
+        agent: jmeter-server
+        code: |
+          import platform
+          print(f"I am running on {platform.node()}")
+          result = {"host": platform.node(), "status": "online"}
+```
 
 ### **Simple API Test**
 

@@ -1,0 +1,99 @@
+# QPT Comprehensive Demo
+#
+# This test incorporates all key QPT features:
+# 1. Parallel Execution Groups
+# 2. Declarative Mode (JMeter)
+# 3. File-Based Execution (k6)
+# 4. Smart Resolution (Method & File)
+# 5. Inline Code Execution
+
+test_info:
+  test_suite_name: "QPT Full Feature Showcase"
+  description: "Demonstrating Parallelism, Smart Resolution, and Multi-Mode Agents"
+  version: "3.0"
+  test_suite_type: "unified"
+
+agents:
+  jmeter-server:
+    endpoint: "http://172.31.128.182:5007"
+    auth_token: "default_token"
+    timeout: 300
+    deploy_info:
+      type: "shell"
+      target: "ubuntu@172.31.128.182"
+      ssh_key: "~/pems/world-cloud.pem"
+      remote_dir: "/home/ubuntu/jmeter-agent"
+  
+  k6-server:
+    endpoint: "http://172.31.128.185:5007"
+    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
+    timeout: 300
+    deploy_info:
+      type: "shell"
+      target: "ubuntu@172.31.128.185"
+      ssh_key: "~/pems/world-cloud.pem"
+      remote_dir: "/home/ubuntu/k6-agent"
+
+workflows:
+  # ──────────────────────────────────────────────────────────────────
+  # GROUP A: PARALLEL LOAD TESTING
+  # Running JMeter (Declarative) and k6 (File-Based) simultaneously
+  # ──────────────────────────────────────────────────────────────────
+  parallel_load_phase_us:
+    group: "global_load_attack"
+    steps:
+      - name: jmeter_declarative_load
+        action: jmeter_test
+        agent: jmeter-server
+        jmeter_config:
+          thread_group_config:
+            threads: 5
+            ramp_time: 1
+            duration: 5
+          scenarios:
+            - name: "Declarative API"
+              url: "https://httpbin.org/get"
+              method: "GET"
+
+  parallel_load_phase_eu:
+    group: "global_load_attack"
+    steps:
+      - name: k6_file_based_load
+        action: k6_test
+        agent: k6-server
+        k6_script_file: "examples/scripts/my_k6_test.js"  # Explicit file path
+
+  # ──────────────────────────────────────────────────────────────────
+  # GROUP B: SMART RESOLUTION & MAINTENANCE (Sequential)
+  # ──────────────────────────────────────────────────────────────────
+  maintenance_flow:
+    steps:
+      # 1. Method Resolution: Finds 'custom_validation' in examples/performance_scripts.py
+      - name: custom_validation
+        action: agent_execute
+        agent: jmeter-server
+        context:
+          env: "production"
+
+      # 2. File Resolution: Finds 'remote_cleanup.py' in examples/agent_scripts/
+      - name: remote_cleanup
+        action: agent_execute
+        agent: k6-server
+      
+      # 3. Inline Code Execution
+      - name: inline_check
+        action: agent_execute
+        agent: jmeter-server
+        code: |
+          import platform
+          import os
+          print(f"I am running on {platform.node()} in {os.getcwd()}")
+          result = {"host": platform.node(), "status": "online"}
+
+reporting:
+  output_dir: "performance_results/comprehensive_demo"
+  include:
+    - workflows
+  formats:
+    - html
+    - json
