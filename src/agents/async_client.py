@@ -68,16 +68,23 @@ class AsyncAgentClient:
             "tags": tags or {}
         }
         
+        logger.info(f"📤 Submitting async job to {url}")
+        logger.debug(f"   Priority: {priority}, Timeout: {timeout or self.timeout}s")
+        logger.debug(f"   Tags: {tags}")
+        
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=self.headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
+                    logger.error(f"❌ Job submission failed: {response.status} - {error_text}")
                     raise Exception(f"Failed to submit job: {response.status} - {error_text}")
                 
                 result = await response.json()
                 job_id = result.get('job_id')
                 
-                logger.info(f"Job submitted: {job_id} (priority={priority})")
+                logger.info(f"✅ Job submitted successfully: {job_id}")
+                logger.info(f"   Status: {result.get('status')}")
+                logger.info(f"   Message: {result.get('message')}")
                 return job_id
     
     async def get_job_status(self, job_id: str) -> Dict[str, Any]:
@@ -187,18 +194,36 @@ class AsyncAgentClient:
                 status = await self.get_job_status(job_id)
                 job_status = status.get('status')
                 
-                logger.debug(f"Job {job_id}: Poll #{poll_count}, status={job_status}, elapsed={elapsed:.1f}s")
+                logger.info(f"🔍 Job {job_id}: Poll #{poll_count}")
+                logger.info(f"   Status: {job_status}")
+                logger.info(f"   Elapsed: {elapsed:.1f}s")
+                if job_status == 'running':
+                    logger.info(f"   ⏳ Job is running...")
+                elif job_status == 'pending':
+                    logger.info(f"   ⏸️  Job is pending in queue...")
                 
                 # Check if job is complete
                 if job_status in ['completed', 'failed', 'cancelled', 'timeout']:
-                    logger.info(f"Job {job_id}: {job_status} after {elapsed:.1f}s ({poll_count} polls)")
+                    logger.info(f"")
+                    logger.info(f"{'='*60}")
+                    logger.info(f"🏁 Job {job_id}: {job_status.upper()}")
+                    logger.info(f"   Total Duration: {elapsed:.1f}s")
+                    logger.info(f"   Total Polls: {poll_count}")
+                    if status.get('duration'):
+                        logger.info(f"   Execution Duration: {status.get('duration'):.2f}s")
+                    logger.info(f"{'='*60}")
+                    logger.info(f"")
                     
                     # Get logs if available
                     try:
+                        logger.info(f"📄 Retrieving job logs...")
                         logs = await self.get_job_logs(job_id)
                         status['logs'] = logs
+                        if logs:
+                            logger.info(f"✅ Logs retrieved ({len(logs)} bytes)")
                     except Exception as e:
-                        logger.warning(f"Failed to retrieve logs for job {job_id}: {e}")
+                        logger.warning(f"⚠️  Failed to retrieve logs for job {job_id}: {e}")
+
                     
                     # Return result
                     if job_status == 'completed':

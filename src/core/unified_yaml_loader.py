@@ -126,7 +126,7 @@ class UnifiedYAMLTestRunner:
             test_exec_mode = self.test_info.get('execution_mode')
             agent_exec_mode = agent_def.get('execution_mode')
             global_exec_mode = self.execution_config.get('execution_mode', 'sync')
-            agent_overrides = self.execution_config.get('agent_overrides', {})
+            agent_overrides = self.execution_config.get('agent_overrides', {}) or {}
             override_mode = agent_overrides.get(agent_id)
             
             # Determine final mode

@@ -9,7 +9,7 @@
 # Global default execution mode for all agents
 # - sync: Blocking execution (current behavior, default)
 # - async: Job-based execution with polling
-execution_mode: sync
+execution_mode: async  # CHANGED TO ASYNC FOR TESTING
 
 # ============================================================================
 # ASYNC MODE CONFIGURATION
