@@ -449,11 +449,32 @@ workflows:
       - name: inline_check
         action: agent_execute
         agent: jmeter-server
-        code: |
-          import platform
           print(f"I am running on {platform.node()}")
           result = {"host": platform.node(), "status": "online"}
 ```
+
+### **Detailed Explanation**
+
+This demo showcases 5 key capabilities of QPT in a single file:
+
+1.  **Parallel Loading**: 
+    *   The workflows `parallel_load_phase_us` and `parallel_load_phase_eu` share the same group ID `global_load_attack`. 
+    *   This instructs the QPT engine to execute them **concurrently**, simulating a distributed load from multiple regions (US & EU) simultaneously.
+
+2.  **Declarative Mode (JMeter)**:
+    *   The `jmeter_declarative_load` step uses `action: jmeter_test` without referring to an external `.jmx` file.
+    *   QPT automatically constructs a JMeter test plan on the fly based on the `jmeter_config` block (scenarios, threads, duration).
+
+3.  **File-Based Mode (k6)**:
+    *   The `k6_file_based_load` step explicitly points to `examples/scripts/my_k6_test.js`.
+    *   This file is automatically uploaded to the `k6-server` agent before execution.
+
+4.  **Smart Resolution**:
+    *   **Method Matching**: `custom_validation` has no code attached. QPT looks into `performance_scripts.py`, finds `def custom_validation(context):`, and transmits that code to the agent.
+    *   **File Matching**: `remote_cleanup` also has no code. QPT looks into `agent_scripts/`, finds `remote_cleanup.py`, and executes it on the remote agent.
+
+5.  **Inline Execution**:
+    *   The `inline_check` step defines Python code directly in the YAML using the `code: |` block. This is perfect for quick assertions, environmental checks, or debugging.
 
 ### **Simple API Test**
 

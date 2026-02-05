@@ -67,6 +67,7 @@ workflows:
   # GROUP B: SMART RESOLUTION & MAINTENANCE (Sequential)
   # ──────────────────────────────────────────────────────────────────
   maintenance_flow:
+    iterations: 5
     steps:
       # 1. Method Resolution: Finds 'custom_validation' in examples/performance_scripts.py
       - name: custom_validation
