@@ -52,7 +52,28 @@ class UnifiedYAMLTestRunner:
         # Initialize agent registry and health monitor
         self.agent_registry = AgentRegistry()
         self.health_monitor = None
+        
+        # Load execution configuration
+        self.execution_config = self._load_execution_config()
+        self.agent_execution_modes = {}  # Track execution mode per agent
+        
         self._load_agents()
+    
+    def _load_execution_config(self) -> Dict:
+        """Load execution configuration from config/execution_config.yml"""
+        exec_config_file = Path('config/execution_config.yml')
+        if not exec_config_file.exists():
+            logger.warning("execution_config.yml not found, using sync mode")
+            return {'execution_mode': 'sync'}
+        
+        try:
+            with open(exec_config_file) as f:
+                config = yaml.safe_load(f)
+                logger.info(f"✅ Loaded execution config: mode={config.get('execution_mode', 'sync')}")
+                return config
+        except Exception as e:
+            logger.warning(f"Failed to load execution config: {e}, using sync mode")
+            return {'execution_mode': 'sync'}
     
     def _load_yaml(self) -> Dict:
         """Load YAML test definition."""
@@ -100,6 +121,27 @@ class UnifiedYAMLTestRunner:
             if auth_token:
                 auth_token = os.path.expandvars(auth_token)
             
+            # Determine execution mode for this agent
+            # Priority: test-level > agent-specific > global > default (sync)
+            test_exec_mode = self.test_info.get('execution_mode')
+            agent_exec_mode = agent_def.get('execution_mode')
+            global_exec_mode = self.execution_config.get('execution_mode', 'sync')
+            agent_overrides = self.execution_config.get('agent_overrides', {})
+            override_mode = agent_overrides.get(agent_id)
+            
+            # Determine final mode
+            if test_exec_mode:
+                exec_mode = test_exec_mode
+            elif agent_exec_mode:
+                exec_mode = agent_exec_mode
+            elif override_mode:
+                exec_mode = override_mode
+            else:
+                exec_mode = global_exec_mode
+            
+            # Store execution mode
+            self.agent_execution_modes[agent_id] = exec_mode
+            
             # Create agent config
             config = AgentConfig(
                 agent_id=agent_id,
@@ -113,7 +155,8 @@ class UnifiedYAMLTestRunner:
             
             # Register agent
             self.agent_registry.register(config)
-            logger.info(f"Registered agent: {agent_id} at {endpoint} (from {source})")
+            logger.info(f"Registered agent: {agent_id} at {endpoint} (from {source}, mode={exec_mode})")
+
     
     def _extract_method_from_file(self, file_path: Path, method_name: str) -> str:
         """
@@ -780,24 +823,94 @@ except Exception as e:
             
             # Execute on agent
             try:
-                client = await self.agent_registry.get_client(agent_id)
-                for j in range(step_iterations):
-                    start_t = time.time()
-                    result = await client.execute(
-                        code=code,
-                        context={**context, 'action': action, 'step_config': step},
-                        tags={**tags, 'step': step_name, 'iteration': str(j)},
-                        timeout=timeout
+                # Determine execution mode for this agent
+                exec_mode = self.agent_execution_modes.get(agent_id, 'sync')
+                
+                if exec_mode == 'async':
+                    # ASYNC EXECUTION (Job-based with polling)
+                    logger.info(f"Step '{step_name}' using ASYNC execution on agent '{agent_id}'")
+                    
+                    # Import async client
+                    from src.agents.async_client import create_async_client
+                    
+                    # Get agent config
+                    agent_config = self.agent_registry.get(agent_id)
+                    
+                    # Create async client
+                    async_client = create_async_client(
+                        endpoint=agent_config.endpoint,
+                        auth_token=agent_config.auth_token,
+                        config=self.execution_config
                     )
-                    duration = time.time() - start_t
-                    step_results.append({
-                        'duration': result.get('duration', duration),
-                        'success': result.get('status') != 'error',
-                        'data': result
-                    })
+                    
+                    # Execute iterations
+                    for j in range(step_iterations):
+                        start_t = time.time()
+                        
+                        try:
+                            result = await async_client.execute_and_wait(
+                                code=code,
+                                context={**context, 'action': action, 'step_config': step},
+                                timeout=timeout,
+                                priority=step.get('priority', 5),
+                                tags={**tags, 'step': step_name, 'iteration': str(j)}
+                            )
+                            
+                            duration = time.time() - start_t
+                            
+                            step_results.append({
+                                'duration': result.get('duration', duration),
+                                'total_duration': result.get('total_duration', duration),
+                                'success': result.get('status') == 'success',
+                                'data': result,
+                                'job_id': result.get('job_id'),
+                                'polls': result.get('polls'),
+                                'execution_mode': 'async'
+                            })
+                            
+                            logger.info(f"Async job completed: {result.get('job_id')} "
+                                      f"(duration={result.get('duration', 0):.2f}s, "
+                                      f"polls={result.get('polls', 0)})")
+                        
+                        except Exception as e:
+                            logger.error(f"Async execution failed for {step_name} iteration {j}: {e}")
+                            step_results.append({
+                                'duration': time.time() - start_t,
+                                'success': False,
+                                'error': str(e),
+                                'execution_mode': 'async'
+                            })
+                
+                else:
+                    # SYNC EXECUTION (Original blocking mode)
+                    logger.debug(f"Step '{step_name}' using SYNC execution on agent '{agent_id}'")
+                    
+                    client = await self.agent_registry.get_client(agent_id)
+                    for j in range(step_iterations):
+                        start_t = time.time()
+                        result = await client.execute(
+                            code=code,
+                            context={**context, 'action': action, 'step_config': step},
+                            tags={**tags, 'step': step_name, 'iteration': str(j)},
+                            timeout=timeout
+                        )
+                        duration = time.time() - start_t
+                        step_results.append({
+                            'duration': result.get('duration', duration),
+                            'success': result.get('status') != 'error',
+                            'data': result,
+                            'execution_mode': 'sync'
+                        })
+            
             except Exception as e:
                 logger.error(f"Agent execution failed for {step_name}: {e}")
-                step_results.append({'duration': 0, 'success': False, 'error': str(e)})
+                step_results.append({
+                    'duration': 0,
+                    'success': False,
+                    'error': str(e),
+                    'execution_mode': exec_mode if 'exec_mode' in locals() else 'unknown'
+                })
+
 
         else:
             # LOCAL EXECUTION
