@@ -1,4 +1,4 @@
-# QPT Framework - Complete Guide (2026 Edition)
+# QPT Framework - Complete Beginner's Guide (2026 Edition)
 
 ## 🎯 Overview
 
@@ -7,6 +7,81 @@
 - **Distributed Testing**: Remote agent architecture
 - **Unified Reporting**: Single consolidated report from all tools
 - **YAML-Driven**: Declarative test definitions
+- **Smart Resolution**: Automatic code discovery from files
+- **Tag-Based Filtering**: Run specific test subsets
+- **Report Grouping**: Organize results by tags or agents
+
+---
+
+## 🚀 Getting Started (For Complete Beginners)
+
+### **Step 1: Prerequisites**
+
+Before you begin, ensure you have:
+
+```bash
+# Python 3.8+
+python3 --version
+
+# Git (to clone the repository)
+git --version
+
+# SSH access to remote agents (if using distributed testing)
+ssh -i ~/pems/your-key.pem user@remote-host
+```
+
+### **Step 2: Clone and Setup**
+
+```bash
+# Clone the repository
+cd ~/neuron-automation-repos/neuron-e2e-grid-revamp
+git clone https://bitbucket.org/espacenetworks/qpt.git neuron-perf-test
+cd neuron-perf-test
+
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Verify installation
+python3 qptcli.py --help
+```
+
+### **Step 3: Run Your First Test (Comprehensive Demo)**
+
+The comprehensive demo (`examples/15_comprehensive_demo.yml`) is the **best starting point** to understand QPT's capabilities.
+
+```bash
+# Run the comprehensive demo
+python3 qptcli.py run examples/15_comprehensive_demo.yml
+
+# Expected output:
+# 🚀 Running Unified QPT Test: examples/15_comprehensive_demo.yml
+# ⚡ Executing Workflow Group: 'global_load_attack' (2 workflows)
+# 📊 Running workflow: parallel_load_phase_us
+# ...
+# ✅ Test execution completed.
+```
+
+**What just happened?**
+1. QPT checked if remote agents are online
+2. If offline, it **auto-deployed** them to the remote servers
+3. Executed **parallel load tests** from 2 regions simultaneously
+4. Ran **sequential maintenance workflows** with smart code resolution
+5. Generated a **unified HTML report** at `performance_results/comprehensive_demo/unified_performance_report.html`
+
+### **Step 4: View the Report**
+
+```bash
+# Open the report in your browser
+open performance_results/comprehensive_demo/unified_performance_report.html
+```
+
+**Report Features:**
+- **Dark Navy Header** with Neuron logo
+- **Dashboard**: Summary metrics (total tests, duration, success rate)
+- **Tabs**: Playwright, k6, JMeter, Workflows
+- **Group By**: Organize workflows by Tags or Agent
+- **Collapsible Details**: Expand/collapse step metrics
+- **No Footer**: Clean, professional design
 
 ---
 
@@ -39,65 +114,301 @@
 
 ---
 
-## 📝 Test File Structure
+## 🧠 Smart Resolution: How QPT Finds Your Code
 
-### **Basic YAML Test**
+One of QPT's most powerful features is **Smart Resolution** - the ability to automatically discover and execute code without explicit file paths.
+
+### **The Resolution Hierarchy**
+
+When you define a workflow step like this:
 
 ```yaml
-test_info:
-  test_suite_name: "My Performance Test"
-  description: "Load testing API endpoints"
-  version: "1.0"
-  test_suite_type: "unified"  # Required for multi-tool tests
-
-# Define remote agents (optional)
-agents:
-  agent-1:
-    endpoint: "http://agent1.example.com:9090"
-    auth_token: "your-secret-token"
-    timeout: 300
-
-# k6 Tests
-k6_tests:
-  api_load:
-    scenarios:
-      - name: "GET Users"
-        url: "https://api.example.com/users"
-        method: "GET"
-        vus: 10
-        duration: "30s"
-
-# JMeter Tests
-jmeter_tests:
-  stress_test:
-    scenarios:
-      - name: "POST Create"
-        url: "https://api.example.com/create"
-        method: "POST"
-        threads: 20
-        ramp_time: 10
-        duration: 60
-
-# Workflows (Custom Logic)
 workflows:
-  user_journey:
-    iterations: 5
+  maintenance_flow:
     steps:
-      - name: "login"
-        action: api_call
-        url: "https://api.example.com/login"
-        method: POST
-        body:
-          username: "test"
-          password: "pass"
-      
-      - name: "fetch_data"
-        action: api_call
-        url: "https://api.example.com/data"
-        method: GET
+      - name: custom_validation  # ← No code specified!
+        action: agent_execute
+        agent: jmeter-server
+```
 
-# Reporting
-reporting:
+QPT searches for code in this order:
+
+#### **1. Inline Code (Highest Priority)**
+
+```yaml
+- name: inline_check
+  action: agent_execute
+  agent: jmeter-server
+  code: |
+    import platform
+    print(f"Running on {platform.node()}")
+    result = {"host": platform.node(), "status": "online"}
+```
+
+**When to use:** Quick checks, debugging, or simple logic that doesn't need reuse.
+
+#### **2. Method Matching (Second Priority)**
+
+QPT looks for a **function with the same name** in `performance_scripts.py`:
+
+**File:** `examples/performance_scripts.py`
+```python
+def custom_validation(context):
+    """This function will be auto-discovered by QPT"""
+    env = context.get('env', 'unknown')
+    print(f"Validating environment: {env}")
+    
+    # Your validation logic here
+    result = {
+        "validation_status": "passed",
+        "environment": env,
+        "timestamp": time.time()
+    }
+    return result
+```
+
+**How it works:**
+1. QPT reads `performance_scripts.py`
+2. Searches for `def custom_validation(`
+3. Extracts the entire function (including imports at the top)
+4. Sends it to the remote agent for execution
+
+**When to use:** Reusable functions that you want to call from multiple workflows.
+
+#### **3. File Matching (Third Priority)**
+
+QPT looks for a **file with the same name** in `agent_scripts/`:
+
+**File:** `examples/agent_scripts/remote_cleanup.py`
+```python
+#!/usr/bin/env python3
+import os
+import shutil
+
+# This entire file will be executed on the remote agent
+print("Starting cleanup...")
+
+# Cleanup logic
+temp_dir = "/tmp/qpt_test_data"
+if os.path.exists(temp_dir):
+    shutil.rmtree(temp_dir)
+    print(f"Removed {temp_dir}")
+
+result = {"cleanup_status": "completed", "files_removed": 42}
+```
+
+**How it works:**
+1. QPT checks if `agent_scripts/remote_cleanup.py` exists
+2. Reads the entire file
+3. Sends it to the remote agent for execution
+
+**When to use:** Standalone scripts, complex logic, or when you need full control over imports and execution flow.
+
+#### **4. Action-Based Code Generation (Fallback)**
+
+If none of the above match, QPT generates code based on the `action` type:
+
+```yaml
+- name: api_health_check
+  action: api_call  # ← QPT generates HTTP request code
+  url: "https://api.example.com/health"
+  method: GET
+```
+
+**Generated code:**
+```python
+import aiohttp
+async with aiohttp.ClientSession() as session:
+    async with session.get("https://api.example.com/health") as response:
+        result = {"status": response.status, "body": await response.text()}
+```
+
+### **Smart Resolution Example Walkthrough**
+
+Let's trace how QPT resolves the `custom_validation` step:
+
+**YAML:**
+```yaml
+- name: custom_validation
+  action: agent_execute
+  agent: jmeter-server
+  context: { env: "production" }
+```
+
+**Resolution Process:**
+
+```
+1. Check for inline code: ❌ Not found
+2. Check performance_scripts.py:
+   - Read file: examples/performance_scripts.py
+   - Search for: "def custom_validation("
+   - ✅ FOUND at line 15
+   - Extract function + imports
+   
+3. Send to agent:
+   POST http://172.31.128.182:5007/execute
+   {
+     "code": "import time\ndef custom_validation(context):\n    ...",
+     "context": {"env": "production"},
+     "timeout": 300
+   }
+   
+4. Agent executes and returns:
+   {
+     "status": "success",
+     "duration": 0.234,
+     "validation_status": "passed",
+     "environment": "production"
+   }
+```
+
+---
+
+## 🏷️ Tag-Based Filtering
+
+Tags allow you to run specific subsets of tests without modifying your YAML files.
+
+### **Defining Tags**
+
+Add tags as **inline comments** in your YAML:
+
+```yaml
+workflows:
+  parallel_load_phase_us:  # sanity, load
+    group: "global_load_attack"
+    steps: [...]
+  
+  parallel_load_phase_eu:  # load
+    group: "global_load_attack"
+    steps: [...]
+  
+  maintenance_flow:  # maintenance
+    steps: [...]
+```
+
+**Tag Rules:**
+- Tags are **comma-separated**
+- Tags are **case-insensitive** (`Sanity` = `sanity` = `SANITY`)
+- Multiple tags per workflow are supported
+- Workflows without tags can be grouped under "No Tags"
+
+### **Running Tagged Tests**
+
+```bash
+# Run only "sanity" tests
+python3 qptcli.py run examples/15_comprehensive_demo.yml --tags sanity
+
+# Run "load" tests
+python3 qptcli.py run examples/15_comprehensive_demo.yml --tags load
+
+# Run multiple tags (OR logic)
+python3 qptcli.py run examples/15_comprehensive_demo.yml --tags sanity,load
+
+# Exclude specific tags
+python3 qptcli.py run examples/15_comprehensive_demo.yml --exclude-tags maintenance
+
+# Combine include and exclude
+python3 qptcli.py run examples/15_comprehensive_demo.yml --tags load --exclude-tags maintenance
+```
+
+### **How Tag Filtering Works Internally**
+
+```python
+# 1. Parse tags from YAML comments
+workflow_tags = {
+    "parallel_load_phase_us": ["sanity", "load"],
+    "parallel_load_phase_eu": ["load"],
+    "maintenance_flow": ["maintenance"]
+}
+
+# 2. Filter workflows
+include_tags = {"sanity"}  # From --tags sanity
+exclude_tags = set()
+
+filtered_workflows = {}
+for name, config in all_workflows.items():
+    tags = set(workflow_tags.get(name, []))
+    
+    # Check include (must have at least one matching tag)
+    if include_tags and not tags.intersection(include_tags):
+        continue  # Skip
+    
+    # Check exclude (must not have any excluded tags)
+    if exclude_tags and tags.intersection(exclude_tags):
+        continue  # Skip
+    
+    filtered_workflows[name] = config
+
+# Result: Only "parallel_load_phase_us" runs
+```
+
+---
+
+## 📊 Report Grouping
+
+The HTML report includes a **"Group Workflows By"** dropdown with three options:
+
+### **1. None (List View)**
+
+Default view - shows all workflows in a flat list.
+
+### **2. Group By: Tags**
+
+Organizes workflows into collapsible groups by tag:
+
+```
+▼ Sanity (1 workflow)
+  - parallel_load_phase_us
+  
+▼ Load (2 workflows)
+  - parallel_load_phase_us
+  - parallel_load_phase_eu
+  
+▼ Maintenance (1 workflow)
+  - maintenance_flow
+```
+
+**Note:** Workflows with multiple tags appear in **multiple groups** (cloned in the UI).
+
+### **3. Group By: Agent**
+
+Organizes workflows by the primary agent used:
+
+```
+▼ jmeter-server (2 workflows)
+  - parallel_load_phase_us
+  - maintenance_flow
+  
+▼ k6-server (1 workflow)
+  - parallel_load_phase_eu
+```
+
+### **How Grouping Works (JavaScript)**
+
+```javascript
+function groupWorkflows() {
+    const mode = document.getElementById('groupBySelect').value;
+    const allWorkflows = document.querySelectorAll('.workflow-details');
+    
+    if (mode === 'tags') {
+        // 1. Extract tags from data-tags attribute
+        // 2. Split by comma: "sanity,load" → ["sanity", "load"]
+        // 3. Create a group for each unique tag
+        // 4. Clone workflow nodes into multiple groups
+        
+        groups = {
+            "Sanity": [workflow1_clone],
+            "Load": [workflow1_clone, workflow2_clone]
+        }
+    }
+    
+    // Render collapsible <details> for each group
+}
+```
+
+---
+
+## 📝 Test File Structure
   output_dir: "performance_results/my_test"
   include:
     - k6
