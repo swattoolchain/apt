@@ -21,6 +21,7 @@ agents:
     endpoint: "http://172.31.128.182:5007"
     auth_token: "default_token"
     timeout: 300
+    execution_mode: sync  # sync (default) or async
     deploy_info:
       type: "shell"
       target: "ubuntu@172.31.128.182"
@@ -36,6 +37,7 @@ agents:
     endpoint: "http://172.31.128.185:5007"
     auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
     timeout: 300
+    execution_mode: sync  # sync (default) or async
     deploy_info:
       type: "shell"
       target: "ubuntu@172.31.128.185"

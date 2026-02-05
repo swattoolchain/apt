@@ -1,0 +1,111 @@
+# QPT Execution Configuration
+#
+# This file controls how tests are executed on agents.
+# Supports both synchronous (blocking) and asynchronous (job-based) execution modes.
+
+# ============================================================================
+# EXECUTION MODE
+# ============================================================================
+# Global default execution mode for all agents
+# - sync: Blocking execution (current behavior, default)
+# - async: Job-based execution with polling
+execution_mode: sync
+
+# ============================================================================
+# ASYNC MODE CONFIGURATION
+# ============================================================================
+async_config:
+  # Initial delay before first status poll (seconds)
+  # Higher value for long-running tests to avoid unnecessary polling
+  rampup_seconds: 5
+  
+  # Interval between status polls (seconds)
+  polling_frequency: 2
+  
+  # Maximum time to wait for job completion (seconds)
+  # 0 = no timeout (wait indefinitely)
+  timeout: 300
+  
+  # Maximum number of retry attempts for failed polls
+  max_poll_retries: 3
+  
+  # Backoff multiplier for retries (exponential backoff)
+  retry_backoff_multiplier: 2
+  
+  # Job cleanup behavior
+  cleanup:
+    # Auto-delete completed jobs after this duration (seconds)
+    # 0 = never auto-delete
+    auto_delete_after: 3600
+    
+    # Keep job logs even after deletion
+    preserve_logs: true
+    
+    # Maximum number of jobs to keep in history
+    max_job_history: 100
+
+# ============================================================================
+# SYNC MODE CONFIGURATION
+# ============================================================================
+sync_config:
+  # Request timeout for synchronous execution (seconds)
+  request_timeout: 300
+  
+  # Enable streaming logs during execution
+  stream_logs: false
+
+# ============================================================================
+# AGENT-SPECIFIC OVERRIDES
+# ============================================================================
+# Override execution mode for specific agents
+# Format: agent_name: mode
+agent_overrides:
+  # Example: Force specific agents to use async mode
+  # long-running-agent: async
+  # quick-agent: sync
+
+# ============================================================================
+# JOB QUEUE CONFIGURATION (Async Mode Only)
+# ============================================================================
+job_queue:
+  # Maximum number of concurrent jobs per agent
+  # 1 = FIFO queue (one job at a time)
+  # >1 = parallel execution
+  max_concurrent_jobs: 1
+  
+  # Job priority levels (1-10, higher = more priority)
+  # Jobs with higher priority execute first
+  enable_priority: false
+  
+  # Default priority for jobs without explicit priority
+  default_priority: 5
+
+# ============================================================================
+# MONITORING & LOGGING
+# ============================================================================
+monitoring:
+  # Enable detailed execution metrics
+  enable_metrics: true
+  
+  # Log level for execution (DEBUG, INFO, WARNING, ERROR)
+  log_level: INFO
+  
+  # Enable job execution traces
+  enable_tracing: false
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# Configuration Priority (highest to lowest):
+# 1. Per-agent override (agent_overrides)
+# 2. Per-test override (test YAML: execution_mode)
+# 3. Global default (execution_mode)
+#
+# Example Test Override:
+# test_info:
+#   execution_mode: async  # Override global setting
+#
+# Example Agent Override in agents.yml:
+# agents:
+#   my-agent:
+#     execution_mode: async  # Override for this agent only
