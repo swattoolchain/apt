@@ -1,0 +1,69 @@
+# QPT Comprehensive Demo (Using Global Agent Pool)
+#
+# This test demonstrates QPT features while referencing agents from config/agents.yml
+# No agent connection details are defined here - they're all in the global pool!
+
+test_info:
+  test_suite_name: "QPT Full Feature Showcase (Global Agents)"
+  description: "Demonstrating Global Agent Pool + All QPT Features"
+  version: "4.0"
+  test_suite_type: "unified"
+
+# ✅ NO AGENTS SECTION - All agents loaded from config/agents.yml
+# Tests simply reference agent names: jmeter-server, k6-server
+
+workflows:
+  # ⚡ PARALLEL LOAD TESTING
+  parallel_load_phase_us:  # sanity, load
+    group: "global_load_attack"
+    steps:
+      - name: jmeter_declarative_load
+        action: jmeter_test
+        agent: jmeter-server  # ← References global agent pool
+        jmeter_config:
+          thread_group_config:
+            threads: 5
+            ramp_time: 2
+            duration: 5
+          scenarios:
+            - name: "Declarative API Test"
+              url: "https://httpbin.org/get"
+              method: "GET"
+
+  parallel_load_phase_eu:  # load
+    group: "global_load_attack"
+    steps:
+      - name: k6_file_based_load
+        action: k6_test
+        agent: k6-server  # ← References global agent pool
+        k6_script_file: "examples/scripts/my_k6_test.js"
+
+  # 🧠 SMART RESOLUTION (Sequential)
+  maintenance_flow:  # maintenance
+    iterations: 5
+    steps:
+      # Method Matching: Finds 'custom_validation' in examples/performance_scripts.py
+      - name: custom_validation
+        action: agent_execute
+        agent: jmeter-server
+        context:
+          env: "production"
+
+      # File Matching: Finds 'remote_cleanup.py' in examples/agent_scripts/
+      - name: remote_cleanup
+        action: agent_execute
+        agent: k6-server
+      
+      # Inline Code
+      - name: inline_check
+        action: agent_execute
+        agent: jmeter-server
+        code: |
+          import platform
+          print(f"I am running on {platform.node()}")
+          result = {"host": platform.node(), "status": "online"}
+
+reporting:
+  output_dir: "performance_results/comprehensive_demo"
+  include:
+    - workflows

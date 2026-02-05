@@ -10,6 +10,7 @@
 - **🎭 Multi-Tool Support**: Playwright (UI), k6 (API), JMeter (Load), Custom Workflows
 - **📊 Real-Time Monitoring**: InfluxDB + Grafana integration
 - **🌍 Distributed Testing**: Remote agent system for multi-region testing
+- **🔧 Global Agent Pool**: Centralized agent configuration in `config/agents.yml`
 - **⚡ Async Agents**: Job queue with priority scheduling for long-running tests (30+ minutes)
 - **🧠 Browser Contexts**: 3x more efficient than separate browsers (70% less RAM)
 - **⚖️ Weighted Load Distribution**: Distribute load across agents by weight with per-agent concurrency
@@ -70,6 +71,7 @@ open performance_results/unified_test/unified_performance_report.html
 - **[Metrics & Iterations](docs/METRICS_AND_ITERATIONS.md)** - Metrics collection and iteration control
 
 ### Agent System
+- **[Global Agent Pool](docs/GLOBAL_AGENT_POOL.md)** - Centralized agent configuration guide
 - **[QPTCLI Guide](docs/QPTCLI_GUIDE.md)** - Complete CLI tool documentation 
 - **[Agent Usage](docs/AGENT_USAGE.md)** - Remote agent system guide and examples
 - **[Agent Deployment](docs/AGENT_DEPLOYMENT.md)** - Manual deployment instructions

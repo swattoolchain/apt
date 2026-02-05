@@ -1,0 +1,76 @@
+# QPT Global Agent Pool Configuration
+#
+# This file defines all available agents that can be referenced by any test.
+# Tests can reference agents by name without needing to define connection details.
+#
+# Usage in test files:
+#   workflows:
+#     my_workflow:
+#       steps:
+#         - name: my_step
+#           agent: jmeter-server  # ← References agent defined here
+#
+# Override Priority:
+#   1. Test-level agent definitions (highest priority)
+#   2. Global agent pool (this file)
+#   3. Local execution (if no agent specified)
+
+agents:
+  # JMeter Agent - US East Region
+  jmeter-server:
+    endpoint: "http://172.31.128.182:5007"
+    auth_token: "default_token"
+    timeout: 300
+    deploy_info:
+      type: "shell"
+      target: "ubuntu@172.31.128.182"
+      ssh_key: "~/pems/world-cloud.pem"
+      remote_dir: "/home/ubuntu/jmeter-agent"
+    metadata:
+      region: "us-east-1"
+      capabilities: ["jmeter", "python", "agent_execute"]
+      description: "Primary JMeter agent for load testing"
+  
+  # k6 Agent - EU West Region
+  k6-server:
+    endpoint: "http://172.31.128.185:5007"
+    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
+    timeout: 300
+    deploy_info:
+      type: "shell"
+      target: "ubuntu@172.31.128.185"
+      ssh_key: "~/pems/world-cloud.pem"
+      remote_dir: "/home/ubuntu/k6-agent"
+    metadata:
+      region: "eu-west-1"
+      capabilities: ["k6", "python", "agent_execute"]
+      description: "Primary k6 agent for distributed load testing"
+
+  # Example: Local Docker Agent (commented out)
+  # docker-local:
+  #   endpoint: "http://localhost:5007"
+  #   auth_token: "local_token"
+  #   timeout: 120
+  #   deploy_info:
+  #     type: "docker"
+  #     image: "qpt-agent:latest"
+  #     container_name: "qpt-local-agent"
+  #   metadata:
+  #     region: "local"
+  #     capabilities: ["jmeter", "k6", "playwright", "python"]
+  #     description: "Local Docker agent for development"
+
+  # Example: Playwright Agent (commented out)
+  # playwright-server:
+  #   endpoint: "http://172.31.128.190:5007"
+  #   auth_token: "playwright_token"
+  #   timeout: 600
+  #   deploy_info:
+  #     type: "shell"
+  #     target: "ubuntu@172.31.128.190"
+  #     ssh_key: "~/pems/world-cloud.pem"
+  #     remote_dir: "/home/ubuntu/playwright-agent"
+  #   metadata:
+  #     region: "us-west-2"
+  #     capabilities: ["playwright", "python"]
+  #     description: "Dedicated Playwright agent for browser testing"

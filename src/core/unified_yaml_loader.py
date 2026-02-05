@@ -60,15 +60,38 @@ class UnifiedYAMLTestRunner:
             return yaml.safe_load(f)
     
     def _load_agents(self):
-        """Load and register agents from YAML definition."""
-        agents_config = self.definition.get('agents', {})
-        
-        if not agents_config:
-            return
-        
+        """Load and register agents from global pool and YAML definition."""
         import os
         
-        for agent_id, agent_def in agents_config.items():
+        # 1. Load global agent pool (if exists)
+        global_agents = {}
+        global_agents_file = Path('config/agents.yml')
+        
+        if global_agents_file.exists():
+            try:
+                with open(global_agents_file) as f:
+                    global_config = yaml.safe_load(f)
+                    global_agents = global_config.get('agents', {})
+                    logger.info(f"✅ Loaded global agent pool from {global_agents_file}")
+                    logger.debug(f"   Available agents: {', '.join(global_agents.keys())}")
+            except Exception as e:
+                logger.warning(f"Failed to load global agent pool: {e}")
+        
+        # 2. Load test-specific agents
+        test_agents = self.definition.get('agents', {})
+        
+        # 3. Merge agents (test-level overrides global)
+        all_agents = {**global_agents, **test_agents}
+        
+        if not all_agents:
+            logger.info("No agents configured (running in local mode)")
+            return
+        
+        # 4. Register merged agents
+        for agent_id, agent_def in all_agents.items():
+            # Determine source for logging
+            source = "test-specific" if agent_id in test_agents else "global pool"
+            
             # Expand environment variables in endpoint and auth_token
             endpoint = agent_def.get('endpoint', '')
             endpoint = os.path.expandvars(endpoint)
@@ -90,7 +113,7 @@ class UnifiedYAMLTestRunner:
             
             # Register agent
             self.agent_registry.register(config)
-            logger.info(f"Registered agent: {agent_id} at {endpoint}")
+            logger.info(f"Registered agent: {agent_id} at {endpoint} (from {source})")
     
     def _extract_method_from_file(self, file_path: Path, method_name: str) -> str:
         """
