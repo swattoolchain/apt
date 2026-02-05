@@ -287,7 +287,21 @@ def run(test_file, tags, exclude_tags):
             
         try:
             import asyncio
+            import logging
             from src.core.unified_yaml_loader import UnifiedYAMLTestRunner
+            
+            # Configure logging
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(message)s', # Keep it clean for the user
+            )
+            # Prevent duplicate logs if already configured
+            logger = logging.getLogger()
+            if not logger.handlers:
+                handler = logging.StreamHandler()
+                handler.setFormatter(logging.Formatter('%(message)s'))
+                logger.addHandler(handler)
+            logger.setLevel(logging.INFO)
             
             # Parse tags
             include_set = set(tags.split(',')) if tags else None

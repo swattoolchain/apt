@@ -859,8 +859,8 @@ except Exception as e:
                             duration = time.time() - start_t
                             
                             step_results.append({
-                                'duration': result.get('duration', duration),
-                                'total_duration': result.get('total_duration', duration),
+                                'duration': result.get('duration') if result.get('duration') is not None else duration,
+                                'total_duration': result.get('total_duration') if result.get('total_duration') is not None else duration,
                                 'success': result.get('status') == 'success',
                                 'data': result,
                                 'job_id': result.get('job_id'),
@@ -869,8 +869,8 @@ except Exception as e:
                             })
                             
                             logger.info(f"Async job completed: {result.get('job_id')} "
-                                      f"(duration={result.get('duration', 0):.2f}s, "
-                                      f"polls={result.get('polls', 0)})")
+                                      f"(duration={result.get('duration') or 0:.2f}s, "
+                                      f"polls={result.get('polls') or 0})")
                         
                         except Exception as e:
                             logger.error(f"Async execution failed for {step_name} iteration {j}: {e}")
@@ -936,8 +936,8 @@ except Exception as e:
                     step_results.append({'duration': time.time() - start_t, 'success': jm_res['status']=='success', 'data': jm_res})
 
         # Summarize results
-        total_duration = sum(r['duration'] for r in step_results)
-        success_count = sum(1 for r in step_results if r['success'])
+        total_duration = sum((r.get('duration') or 0) for r in step_results)
+        success_count = sum(1 for r in step_results if r.get('success'))
         
         return {
             'name': step_name,

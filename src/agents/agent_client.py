@@ -202,6 +202,23 @@ class AgentRegistry:
         self.configs[config.agent_id] = config
         logger.info(f"Registered agent: {config.agent_id} ({config.type.value})")
     
+    def get(self, agent_id: str) -> AgentConfig:
+        """
+        Get agent configuration.
+        
+        Args:
+            agent_id: Agent identifier
+            
+        Returns:
+            Agent configuration
+            
+        Raises:
+            KeyError if agent not registered
+        """
+        if agent_id not in self.configs:
+            raise KeyError(f"Agent '{agent_id}' not registered")
+        return self.configs[agent_id]
+    
     async def get_client(self, agent_id: str) -> RemoteAgentClient:
         """
         Get or create client for an agent.

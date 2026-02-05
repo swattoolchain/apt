@@ -276,7 +276,11 @@ async def emit_metrics(metrics: Dict):
 # ============================================================================
 
 # Initialize JobManager
-from .job_manager import JobManager, JobStatus
+try:
+    from .job_manager import JobManager, JobStatus
+except ImportError:
+    # Standalone execution (not as package)
+    from job_manager import JobManager, JobStatus
 
 # Job manager instance (initialized on startup)
 job_manager: Optional[JobManager] = None

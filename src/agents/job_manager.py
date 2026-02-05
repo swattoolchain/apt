@@ -274,17 +274,61 @@ class JobManager:
         try:
             logger.info(f"Executing job: {job.job_id}")
             
-            # Prepare execution environment
-            exec_globals = {"context": job.context, "result": None}
-            exec_locals = {}
+            # Prepare execution environment (matching AgentServer restricted env)
+            allowed_modules = {
+                'time': __import__('time'),
+                'json': __import__('json'),
+                'requests': __import__('requests'),
+                'datetime': __import__('datetime'),
+                'math': __import__('math'),
+                'subprocess': __import__('subprocess'),
+                'os': __import__('os'),
+                'shutil': __import__('shutil'),
+                'platform': __import__('platform'),
+            }
+            
+            exec_globals = {
+                '__builtins__': {
+                    'print': print,
+                    'len': len,
+                    'range': range,
+                    'str': str,
+                    'int': int,
+                    'float': float,
+                    'dict': dict,
+                    'list': list,
+                    'tuple': tuple,
+                    'bool': bool,
+                    'True': True,
+                    'False': False,
+                    'None': None,
+                    '__import__': __import__,
+                    'open': open,
+                    'Exception': Exception,
+                    'hasattr': hasattr,
+                    'getattr': getattr,
+                    'setattr': setattr,
+                    'round': round,
+                },
+                **allowed_modules
+            }
+            
+            exec_locals = job.context.copy()
+            exec_locals['context'] = job.context
+            exec_locals['result'] = None
             
             # Execute code with timeout
             start_time = time.time()
             
             # Run in thread pool to support timeout
             loop = asyncio.get_event_loop()
-            await asyncio.wait_for(
-                loop.run_in_executor(None, exec, job.code, exec_globals, exec_locals),
+            
+            def sync_exec():
+                exec(job.code, exec_globals, exec_locals)
+                return exec_locals.get('result')
+            
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, sync_exec),
                 timeout=job.timeout
             )
             

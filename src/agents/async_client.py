@@ -206,11 +206,15 @@ class AsyncAgentClient:
                 if job_status in ['completed', 'failed', 'cancelled', 'timeout']:
                     logger.info(f"")
                     logger.info(f"{'='*60}")
-                    logger.info(f"🏁 Job {job_id}: {job_status.upper()}")
+                    status_str = (job_status or "UNKNOWN").upper()
+                    logger.info(f"🏁 Job {job_id}: {status_str}")
                     logger.info(f"   Total Duration: {elapsed:.1f}s")
                     logger.info(f"   Total Polls: {poll_count}")
-                    if status.get('duration'):
-                        logger.info(f"   Execution Duration: {status.get('duration'):.2f}s")
+                    
+                    job_duration = status.get('duration')
+                    if job_duration is not None:
+                        logger.info(f"   Execution Duration: {job_duration:.2f}s")
+                    
                     logger.info(f"{'='*60}")
                     logger.info(f"")
                     
