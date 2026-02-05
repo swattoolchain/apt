@@ -71,7 +71,7 @@ job_queue:
   # Maximum number of concurrent jobs per agent
   # 1 = FIFO queue (one job at a time)
   # >1 = parallel execution
-  max_concurrent_jobs: 1
+  max_concurrent_jobs: 20  # INCREASED FROM 1 TO ENABLE PARALLELISM
   
   # Job priority levels (1-10, higher = more priority)
   # Jobs with higher priority execute first
