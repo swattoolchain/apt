@@ -17,8 +17,8 @@ import click
 import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 @click.group()
@@ -44,7 +44,7 @@ def agent():
 def create(name, deploy_type, mode, emit_target, auth_token, schedule):
     """Create a new agent package"""
     try:
-        from performance.agents import AgentProvisioner, DeploymentMethod
+        from src.agents import AgentProvisioner, DeploymentMethod
         import secrets
         
         # Generate auth token if not provided
@@ -92,7 +92,7 @@ def create(name, deploy_type, mode, emit_target, auth_token, schedule):
 def deploy(name, target, ssh_key, deploy_type, remote_dir):
     """Deploy agent to remote server"""
     try:
-        from performance.agents import AgentDeployer, DeploymentTarget, DeploymentMethod
+        from src.agents import AgentDeployer, DeploymentTarget, DeploymentMethod
         from pathlib import Path
         import asyncio
         
@@ -180,7 +180,7 @@ def status(name, endpoint, auth_token):
 def logs(name, target, ssh_key, deploy_type, tail):
     """Fetch agent logs from remote server"""
     try:
-        from performance.agents import AgentDeployer, DeploymentTarget, DeploymentMethod
+        from src.agents import AgentDeployer, DeploymentTarget, DeploymentMethod
         import asyncio
         
         # Parse target
@@ -219,7 +219,7 @@ def logs(name, target, ssh_key, deploy_type, tail):
 def remove(name, target, ssh_key, deploy_type, cleanup):
     """Remove an agent from remote server"""
     try:
-        from performance.agents import AgentDeployer, DeploymentTarget, DeploymentMethod
+        from src.agents import AgentDeployer, DeploymentTarget, DeploymentMethod
         import asyncio
         
         # Confirm
@@ -273,15 +273,27 @@ def setup(config):
 @cli.command()
 @click.argument('test_file', type=click.Path(exists=True))
 def run(test_file):
-    """Run a test file"""
-    click.echo(f"Running test: {test_file}")
-    click.echo("\nℹ️  Use pytest to run tests:")
-    click.echo(f"  pytest {test_file}")
+    """Run a test file (YAML or Python)"""
+    test_path = Path(test_file)
     
-    # Could implement actual test execution here
-    import subprocess
-    result = subprocess.run(['pytest', test_file])
-    sys.exit(result.returncode)
+    if test_path.suffix in ['.yml', '.yaml']:
+        click.echo(f"🚀 Running Unified QPT Test: {test_file}")
+        try:
+            import asyncio
+            from src.core.unified_yaml_loader import UnifiedYAMLTestRunner
+            
+            runner = UnifiedYAMLTestRunner(test_file)
+            asyncio.run(runner.run_all_tests())
+            
+            click.echo("\n✅ Test execution completed.")
+        except Exception as e:
+            click.echo(f"❌ Error during test execution: {e}", err=True)
+            sys.exit(1)
+    else:
+        click.echo(f"🧪 Running Pytest: {test_file}")
+        import subprocess
+        result = subprocess.run(['pytest', test_file, '-v', '-s'])
+        sys.exit(result.returncode)
 
 
 @cli.command()

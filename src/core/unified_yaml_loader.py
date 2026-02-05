@@ -5,9 +5,11 @@ Loads and executes unified test definitions that combine Playwright, k6, and JMe
 """
 
 import yaml
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+import asyncio
 import logging
+import json
+from typing import Dict, List, Any, Optional
+from pathlib import Path
 
 from .unified_runner import UnifiedTestRunner
 from .unified_report_generator import UnifiedReportGenerator
@@ -182,67 +184,183 @@ except Exception as e:
             
             elif action == 'k6_test':
                 # Generate code to run k6 on remote agent
-                # Note: This requires k6 to be installed on the agent
-                code = """
-import subprocess
-import time
-import json
-import tempfile
+                k6_config = step.get('k6_config', {})
+                scenarios = k6_config.get('scenarios', [])
+                options = k6_config.get('options', {})
+                
+                # Check for external script file
+                k6_script_file = step.get('k6_script_file')
+                script_content = ""
+                if k6_script_file:
+                    path = Path(k6_script_file)
+                    if not path.is_absolute():
+                        path = Path(self.yaml_file).parent / k6_script_file
+                    if path.exists():
+                        script_content = path.read_text()
+                
+                # Build the JS script part
+                if not script_content:
+                    js_lines = [
+                        "import http from 'k6/http';",
+                        "import { check } from 'k6';",
+                        f"export let options = {json.dumps(options)};",
+                        "export default function() {"
+                    ]
+                    for scenario in scenarios:
+                        name = scenario.get('name', 'request')
+                        method = scenario.get('method', 'get').lower()
+                        url = scenario.get('url', '')
+                        js_lines.append(f"  // {name}")
+                        js_lines.append(f"  let res = http.{method}('{url}');")
+                        js_lines.append("  check(res, { 'status is 200': (r) => r.status === 200 });")
+                    js_lines.append("}")
+                    script_content = "\n".join(js_lines)
 
-# Get k6 config from context
-k6_config = context.get('step_config', {}).get('k6_config', {})
-scenarios = k6_config.get('scenarios', [])
-options = k6_config.get('options', {})
+                # Now build the Python code that runs k6
+                py_code = [
+                    "import subprocess",
+                    "import time",
+                    "import json",
+                    "import tempfile",
+                    "import os",
+                    f"k6_script_content = {json.dumps(script_content)}",
+                    "",
+                    "with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:",
+                    "    f.write(k6_script_content)",
+                    "    script_path = f.name",
+                    "",
+                    "start = time.time()",
+                    "try:",
+                    "    proc = subprocess.run(['k6', 'run', '--summary-export', '/tmp/k6_summary.json', script_path], capture_output=True, text=True, timeout=300)",
+                    "    duration = time.time() - start",
+                    "    metrics = {}",
+                    "    try:",
+                    "        if os.path.exists('/tmp/k6_summary.json'):",
+                    "            with open('/tmp/k6_summary.json', 'r') as sf:",
+                    "                metrics = json.load(sf).get('metrics', {})",
+                    "    except: pass",
+                    "    result = {",
+                    "        'duration': duration,",
+                    "        'success': proc.returncode == 0,",
+                    "        'output': proc.stdout,",
+                    "        'error': proc.stderr if proc.returncode != 0 else None,",
+                    "        'tool': 'k6',",
+                    "        'metrics': metrics",
+                    "    }",
+                    "except Exception as e:",
+                    "    result = { 'duration': time.time() - start, 'success': False, 'error': str(e) }",
+                    "finally:",
+                    "    if os.path.exists(script_path): os.unlink(script_path)",
+                    "    if os.path.exists('/tmp/k6_summary.json'): os.unlink('/tmp/k6_summary.json')"
+                ]
+                return "\n".join(py_code)
+            
+            elif action == 'jmeter_test':
+                # Generate code to run JMeter on remote agent
+                jmeter_config = step.get('jmeter_config', {})
+                scenarios = jmeter_config.get('scenarios', [])
+                tg_config = jmeter_config.get('thread_group_config', {})
+                
+                # Check for external JMX file
+                jmx_file = step.get('jmx_file')
+                jmx_content = ""
+                if jmx_file:
+                    path = Path(jmx_file)
+                    if not path.is_absolute():
+                        path = Path(self.yaml_file).parent / jmx_file
+                    if path.exists():
+                        jmx_content = path.read_text()
 
-# Generate k6 script
-k6_script = '''
-import http from 'k6/http';
-import { check } from 'k6';
+                if not jmx_content:
+                    # Build JMX
+                    threads = tg_config.get('threads', 1)
+                    ramp = tg_config.get('ramp_time', 1)
+                    duration = tg_config.get('duration', 60)
+                    jmx_lines = [
+                        '<?xml version="1.0" encoding="UTF-8"?>',
+                        '<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">',
+                        '  <hashTree>',
+                        '    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="API Load Test"/>',
+                        '    <hashTree>',
+                        '      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Users">',
+                        f'        <intProp name="ThreadGroup.num_threads">{threads}</intProp>',
+                        f'        <intProp name="ThreadGroup.ramp_time">{ramp}</intProp>',
+                        f'        <longProp name="ThreadGroup.duration">{duration}</longProp>',
+                        '        <boolProp name="ThreadGroup.scheduler">true</boolProp>',
+                        '        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">',
+                        '          <boolProp name="LoopController.continue_forever">false</boolProp>',
+                        '          <intProp name="LoopController.loops">-1</intProp>',
+                        '        </elementProp>',
+                        '      </ThreadGroup>',
+                        '      <hashTree>'
+                    ]
+                    for scenario in scenarios:
+                        s_name = scenario.get('name', 'Request')
+                        url = scenario.get('url', '')
+                        method = scenario.get('method', 'GET').upper()
+                        domain = url.split('//')[-1].split('/')[0]
+                        path = "/" + "/".join(url.split('//')[-1].split('/')[1:])
+                        proto = 'https' if 'https' in url else 'http'
+                        jmx_lines.extend([
+                            f'        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="{s_name}">',
+                            f'          <stringProp name="HTTPSampler.domain">{domain}</stringProp>',
+                            f'          <stringProp name="HTTPSampler.path">{path}</stringProp>',
+                            f'          <stringProp name="HTTPSampler.method">{method}</stringProp>',
+                            f'          <stringProp name="HTTPSampler.protocol">{proto}</stringProp>',
+                            '        </HTTPSamplerProxy>',
+                            '        <hashTree/>'
+                        ])
+                    jmx_lines.extend([
+                        '      </hashTree>',
+                        '    </hashTree>',
+                        '  </hashTree>',
+                        '</jmeterTestPlan>'
+                    ])
+                    jmx_content = "\n".join(jmx_lines)
 
-export let options = ''' + json.dumps(options) + ''';
-
-export default function() {
-'''
-
-for scenario in scenarios:
-    k6_script += f'''
-    // {scenario.get('name', 'request')}
-    let res = http.{scenario.get('method', 'get').lower()}('{scenario.get('url', '')}');
-    check(res, {{ 'status is 200': (r) => r.status === 200 }});
-'''
-
-k6_script += '''
-}
-'''
-
-# Write script to temp file
-with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
-    f.write(k6_script)
-    script_path = f.name
-
-# Run k6
-start = time.time()
-try:
-    proc = subprocess.run(['k6', 'run', script_path], capture_output=True, text=True, timeout=300)
-    duration = time.time() - start
-    
-    result = {
-        'duration': duration,
-        'success': proc.returncode == 0,
-        'output': proc.stdout,
-        'error': proc.stderr if proc.returncode != 0 else None
-    }
-except Exception as e:
-    result = {
-        'duration': time.time() - start,
-        'success': False,
-        'error': str(e)
-    }
-finally:
-    import os
-    os.unlink(script_path)
-"""
-                return code
+                py_code = [
+                    "import subprocess",
+                    "import time",
+                    "import json",
+                    "import tempfile",
+                    "import os",
+                    f"jmx_content_to_run = {json.dumps(jmx_content)}",
+                    "",
+                    "with tempfile.NamedTemporaryFile(mode='w', suffix='.jmx', delete=False) as f:",
+                    "    f.write(jmx_content_to_run)",
+                    "    jmx_path = f.name",
+                    "results_path = jmx_path.replace('.jmx', '.jtl')",
+                    "",
+                    "jmeter_bin = '/home/ubuntu/jmeter-agent/apache-jmeter-5.6.3/bin/jmeter'",
+                    "if not os.path.exists(jmeter_bin): jmeter_bin = 'jmeter'",
+                    "",
+                    "start = time.time()",
+                    "try:",
+                    "    proc = subprocess.run([jmeter_bin, '-n', '-t', jmx_path, '-l', results_path], capture_output=True, text=True, timeout=600)",
+                    "    duration = time.time() - start",
+                    "    total_reqs = 0",
+                    "    success_reqs = 0",
+                    "    if os.path.exists(results_path):",
+                    "        with open(results_path, 'r') as rf:",
+                    "            lines = rf.readlines()[1:]",
+                    "            total_reqs = len(lines)",
+                    "            success_reqs = sum(1 for l in lines if ',true,' in l or l.endswith(',true'))",
+                    "    result = {",
+                    "        'duration': duration,",
+                    "        'success': proc.returncode == 0,",
+                    "        'total_requests': total_reqs,",
+                    "        'successful_requests': success_reqs,",
+                    "        'tool': 'jmeter',",
+                    "        'output': proc.stdout,",
+                    "        'error': proc.stderr if proc.returncode != 0 else None",
+                    "    }",
+                    "except Exception as e:",
+                    "    result = { 'duration': time.time() - start, 'success': False, 'error': str(e) }",
+                    "finally:",
+                    "    if os.path.exists(jmx_path): os.unlink(jmx_path)",
+                    "    if os.path.exists(results_path): os.unlink(results_path)"
+                ]
+                return "\n".join(py_code)
             
             else:
                 return ""
@@ -262,11 +380,14 @@ finally:
         """
         logger.info(f"Running unified test suite: {self.test_info.get('test_suite_name', 'Unnamed')}")
         
-        # Start health monitoring for agents
+        # 1. IMPLICIT PREREQUISITE: Agent Health Check and Discovery
+        await self._ensure_agents_healthy()
+        
+        # Start continuous health monitoring for agents
         if self.agent_registry.list_agents():
             self.health_monitor = AgentHealthMonitor(self.agent_registry)
             await self.health_monitor.start()
-            logger.info(f"Started health monitoring for {len(self.agent_registry.list_agents())} agents")
+            logger.info(f"Started continuous health monitoring for {len(self.agent_registry.list_agents())} agents")
         
         try:
             # Determine which tools to run
@@ -296,14 +417,108 @@ finally:
                 await self.health_monitor.stop()
             await self.agent_registry.cleanup()
             logger.info("Agent connections closed")
-    
+        
+    async def _ensure_agents_healthy(self):
+        """Check health of all agents. Attempt deployment if metadata is provided."""
+        logger.info("🔍 Verifying agent health prerequisites...")
+        registry = self.agent_registry
+        agents_list = registry.list_agents()
+        
+        if not agents_list:
+            logger.info("No remote agents defined.")
+            return
+
+        for agent_id in agents_list:
+            client = await registry.get_client(agent_id)
+            is_healthy = await client.health_check()
+            
+            if not is_healthy:
+                logger.warning(f"⚠️ Agent '{agent_id}' is offline at {client.config.endpoint}")
+                
+                # Check for deployment info
+                agent_def = self.definition.get('agents', {}).get(agent_id, {})
+                deploy_info = agent_def.get('deploy_info')
+                
+                if deploy_info:
+                    logger.info(f"🚀 Attempting auto-deployment for agent '{agent_id}'...")
+                    await self._deploy_agent(agent_id, deploy_info)
+                    
+                    # Re-check health after deployment (with retries)
+                    success = False
+                    for i in range(5):
+                        await asyncio.sleep(5)
+                        if await client.health_check():
+                            logger.info(f"✅ Agent '{agent_id}' is now online and healthy.")
+                            success = True
+                            break
+                        logger.info(f"   Waiting for agent '{agent_id}' to come online... ({i+1}/5)")
+                    
+                    if not success:
+                        raise RuntimeError(f"CRITICAL: Agent '{agent_id}' failed to start after auto-deployment.")
+                else:
+                    raise RuntimeError(f"CRITICAL: Agent '{agent_id}' is unreachable and no 'deploy_info' provided in YAML.")
+            else:
+                logger.debug(f"✅ Agent '{agent_id}' is healthy.")
+
+    async def _deploy_agent(self, agent_id: str, deploy_info: Dict):
+        """Provisions and deploys an agent based on deploy_info."""
+        try:
+            from src.agents.provisioner import AgentProvisioner, DeploymentMethod
+            from src.agents.deployer import AgentDeployer, DeploymentTarget
+            
+            agent_def = self.definition.get('agents', {}).get(agent_id, {})
+            
+            # 1. Provision (Create package)
+            provisioner = AgentProvisioner()
+            method_str = deploy_info.get('type', 'shell').lower()
+            method_map = {
+                'docker': DeploymentMethod.DOCKER,
+                'shell': DeploymentMethod.SHELL,
+                'systemd': DeploymentMethod.SYSTEMD
+            }
+            method = method_map.get(method_str, DeploymentMethod.SHELL)
+            
+            # Agent server config
+            agent_config = {
+                'name': agent_id,
+                'auth_token': deploy_info.get('auth_token', agent_def.get('auth_token', 'default_token')),
+                'mode': 'serve',
+                'port': 5007  # Match framework expectation
+            }
+            
+            package_dir = provisioner.create_agent(agent_id, method, agent_config)
+            logger.info(f"   Package created at: {package_dir}")
+            
+            # 2. Deploy
+            deployer = AgentDeployer()
+            target_str = deploy_info.get('target') # e.g. "ubuntu@172.31.128.182"
+            ssh_key = deploy_info.get('ssh_key')
+            target = DeploymentTarget.from_string(target_str, ssh_key)
+            
+            remote_dir = deploy_info.get('remote_dir', f'/home/ubuntu/{agent_id}')
+            
+            success = await deployer.deploy(
+                agent_id,
+                package_dir,
+                target,
+                method,
+                remote_dir
+            )
+            
+            if not success:
+                raise RuntimeError("Deployment script failed.")
+                
+        except Exception as e:
+            logger.error(f"Failed to deploy agent '{agent_id}': {e}")
+            raise
+
     async def _run_workflows(self):
         """Run workflows from YAML definition."""
         logger.info("Running workflows...")
         
         import aiohttp
         from examples.run_workflow_test import execute_api_call
-        from custom_aggregators.selective_iteration_aggregator import aggregate_selective_iterations
+        from src.aggregators.selective_iteration_aggregator import aggregate_selective_iterations
         import time
         
         workflows = self.definition.get('workflows', {})

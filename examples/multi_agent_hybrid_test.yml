@@ -1,0 +1,95 @@
+# QPT Distributed Multi-Agent Advanced Demo
+#
+# This example demonstrates 3 ways to run tests on remote agents:
+# 1. Declarative Mode (Minimal params, auto-generated code)
+# 2. File-Based Execution (Referencing external scripts)
+# 3. Smart Resolution (Automatic discovery via naming conventions)
+# 4. General Python Step (Inline code for custom logic)
+
+test_info:
+  test_suite_name: "Advanced Distributed Hybrid Test"
+  description: "Showcasing QPT's modular execution modes"
+  version: "3.0"
+  test_suite_type: "unified"
+
+agents:
+  jmeter-server:
+    endpoint: "http://172.31.128.182:5007"
+    auth_token: "JPnDucYK__kmeaNFT-Ur6QbcKTLeOsCYvpCkebB42H8"
+    timeout: 300
+    deploy_info:
+      type: "shell"
+      target: "ubuntu@172.31.128.182"
+      ssh_key: "/Users/dineshrvl/pems/world-cloud.pem"
+      remote_dir: "/home/ubuntu/jmeter-agent"
+  
+  k6-server:
+    endpoint: "http://172.31.128.185:5007"
+    auth_token: "rtkbC6b35jrChrvWyJtdUL0mhyMWEfcS5rYhDMBHkgQ"
+    timeout: 300
+    deploy_info:
+      type: "shell"
+      target: "ubuntu@172.31.128.185"
+      ssh_key: "/Users/dineshrvl/pems/world-cloud.pem"
+      remote_dir: "/home/ubuntu/k6-agent"
+
+workflows:
+  advanced_distributed_load:
+    iterations: 1
+    steps:
+      # ──────────────────────────────────────────────────────────────────
+      # 1. DECLARATIVE MODE (Minimal params, code built on-the-fly)
+      # ──────────────────────────────────────────────────────────────────
+      - name: jmeter_declarative_load
+        action: jmeter_test
+        agent: jmeter-server
+        jmeter_config:
+          thread_group_config:
+            threads: 10
+            ramp_time: 5
+            duration: 10
+          scenarios:
+            - name: "API Feed"
+              url: "https://jsonplaceholder.typicode.com/posts"
+              method: "GET"
+
+      # ──────────────────────────────────────────────────────────────────
+      # 2. FILE-BASED EXECUTION (Explicitly reference a file)
+      # ──────────────────────────────────────────────────────────────────
+      - name: k6_file_based_load
+        action: k6_test
+        agent: k6-server
+        k6_script_file: "scripts/my_k6_test.js"
+
+      # ──────────────────────────────────────────────────────────────────
+      # 3. SMART RESOLUTION (Discovery via naming conventions)
+      # ──────────────────────────────────────────────────────────────────
+      
+      # Demo A: Method match in 'performance_scripts.py'
+      - name: custom_validation
+        action: agent_execute
+        agent: jmeter-server
+        context:
+          env: "production"
+
+      # Demo B: File match in 'agent_scripts/' directory
+      - name: remote_cleanup
+        action: agent_execute
+        agent: k6-server
+
+      # ──────────────────────────────────────────────────────────────────
+      # 4. GENERAL PYTHON STEP (Inline code for quick logic)
+      # ──────────────────────────────────────────────────────────────────
+      - name: local_final_check
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/todos/1"
+        method: GET
+        iterations: 2
+
+reporting:
+  output_dir: "performance_results/advanced_test"
+  include:
+    - workflows
+  formats:
+    - html
+    - json

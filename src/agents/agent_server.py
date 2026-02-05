@@ -12,6 +12,11 @@ import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.responses import JSONResponse
@@ -111,6 +116,9 @@ async def execute_code(
             'requests': __import__('requests'),
             'datetime': __import__('datetime'),
             'math': __import__('math'),
+            'subprocess': __import__('subprocess'),
+            'os': __import__('os'),
+            'shutil': __import__('shutil'),
         }
         
         exec_globals = {
@@ -124,43 +132,66 @@ async def execute_code(
                 'dict': dict,
                 'list': list,
                 'tuple': tuple,
+                'bool': bool,
                 'True': True,
                 'False': False,
                 'None': None,
+                '__import__': __import__,
+                'open': open,
+                'Exception': Exception,
+                'hasattr': hasattr,
+                'getattr': getattr,
+                'setattr': setattr,
+                'round': round,
+                'os': __import__('os'),
+                'shutil': __import__('shutil'),
             },
             **allowed_modules
         }
         
         exec_locals = request.context.copy()
+        exec_locals['context'] = request.context  # Make context available as a variable
         
         # Execute code with timeout
         start = time.time()
         
+        # Execute code in a thread pool to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        
         try:
-            # Use asyncio timeout for execution
-            async def run_code():
+            # Note: globals and locals must be handled carefully in threads
+            def sync_exec():
                 exec(request.code, exec_globals, exec_locals)
+                return exec_locals.get('result', {})
             
-            await asyncio.wait_for(run_code(), timeout=request.timeout)
+            result_data = await asyncio.wait_for(
+                loop.run_in_executor(None, sync_exec),
+                timeout=request.timeout
+            )
             
         except asyncio.TimeoutError:
             raise HTTPException(
                 status_code=408,
                 detail=f"Execution timeout after {request.timeout}s"
             )
+        except Exception as e:
+            logger.exception("Execution error")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Execution error: {str(e)}"
+            )
         
         duration = time.time() - start
         
-        # Extract result (code should set 'result' variable)
-        result = exec_locals.get('result', {
-            'duration': duration,
-            'status': 'success',
-            'message': 'No result variable set'
-        })
+        # Merge iteration results if generated (backwards compatibility)
+        final_result = result_data if isinstance(result_data, dict) else {"data": result_data}
         
-        # Ensure result is a dict
-        if not isinstance(result, dict):
-            result = {'value': result, 'duration': duration}
+        # Ensure duration and status are included
+        result = {
+            "status": "success",
+            "duration": final_result.get('duration', duration),
+            **final_result
+        }
         
         # Add metadata
         result['agent_name'] = AGENT_NAME
@@ -256,7 +287,8 @@ async def root():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv('AGENT_PORT', 9090))
+    # Prioritize: config.get('port') > AGENT_PORT env > 5007
+    port = int(config.get('port', os.getenv('AGENT_PORT', 5007)))
     
     print(f"""
 ╔══════════════════════════════════════════════════════════╗

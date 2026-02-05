@@ -243,12 +243,13 @@ class AgentDeployer:
         # Make script executable
         await self._run_command(f"chmod +x {remote_dir}/start_agent.sh")
         
-        # Start agent in background
+        # Run the start script
+        # The new script backgrounds the server and verifies start internally
         await self._run_command(
-            f"cd {remote_dir} && nohup ./start_agent.sh > agent.log 2>&1 &"
+            f"cd {remote_dir} && ./start_agent.sh"
         )
         
-        print("✅ Shell agent started")
+        print("✅ Shell deployment script finished")
     
     async def _verify_deployment(self, remote_dir: str) -> bool:
         """Verify agent is running"""
@@ -256,13 +257,16 @@ class AgentDeployer:
             # Wait a bit for agent to start
             await asyncio.sleep(3)
             
-            # Try to curl health endpoint
-            result = await self._run_command(
-                "curl -s http://localhost:9090/health",
-                check=False
-            )
-            
-            return "healthy" in result.lower()
+            # Try to curl health endpoint - check both 5007 (new) and 9090 (old)
+            # Port 5007 is the new framework standard
+            for port in [5007, 9090]:
+                result = await self._run_command(
+                    f"curl -s http://localhost:{port}/health",
+                    check=False
+                )
+                if "healthy" in result.lower():
+                    return True
+            return False
         
         except Exception as e:
             logger.warning(f"Verification failed: {e}")

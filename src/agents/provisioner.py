@@ -30,7 +30,7 @@ class AgentProvisioner:
         Args:
             output_dir: Base directory for agent packages (default: .apt/agents)
         """
-        self.output_dir = output_dir or Path.home() / ".apt" / "agents"
+        self.output_dir = output_dir or Path.home() / ".qpt" / "agents"
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
     def create_agent(
@@ -124,6 +124,7 @@ networks:
 uvicorn==0.24.0
 aiohttp==3.9.0
 pydantic==2.5.0
+requests==2.31.0
 influxdb-client==1.38.0
 requests==2.31.0
 """
@@ -134,7 +135,7 @@ requests==2.31.0
             "name": name,
             "mode": config.get('mode', 'emit'),
             "emit_target": config.get('emit_target', ''),
-            "auth_token": config.get('auth_token', '')
+            "auth_token": config.get('auth_token', ''), "port": config.get('port', 5007)
         }
         (package_dir / "config.json").write_text(json.dumps(config_json, indent=2))
         
@@ -207,7 +208,8 @@ find "$AGENT_DIR" -name "*.log" -mtime +7 -delete
             "name": name,
             "mode": config.get('mode', 'serve'),
             "emit_target": config.get('emit_target', ''),
-            "auth_token": config.get('auth_token', '')
+            "auth_token": config.get('auth_token', ''), "port": config.get('port', 5007),
+            "port": config.get('port', 5007)
         }
         (package_dir / "config.json").write_text(json.dumps(config_json, indent=2))
         
@@ -219,6 +221,7 @@ find "$AGENT_DIR" -name "*.log" -mtime +7 -delete
 uvicorn==0.24.0
 aiohttp==3.9.0
 pydantic==2.5.0
+requests==2.31.0
 """
         (package_dir / "requirements.txt").write_text(requirements)
         
@@ -281,7 +284,7 @@ WantedBy=multi-user.target
             "name": name,
             "mode": config.get('mode', 'emit'),
             "emit_target": config.get('emit_target', ''),
-            "auth_token": config.get('auth_token', '')
+            "auth_token": config.get('auth_token', ''), "port": config.get('port', 5007)
         }
         (package_dir / "config.json").write_text(json.dumps(config_json, indent=2))
         
@@ -293,6 +296,7 @@ WantedBy=multi-user.target
 uvicorn==0.24.0
 aiohttp==3.9.0
 pydantic==2.5.0
+requests==2.31.0
 """
         (package_dir / "requirements.txt").write_text(requirements)
         
@@ -362,23 +366,50 @@ sudo systemctl stop {name}
     def _create_shell_agent(self, package_dir: Path, name: str, config: Dict):
         """Generate standalone shell script agent"""
         
-        # Simple shell wrapper
+        # Robust shell wrapper
         script = f"""#!/bin/bash
-# APT Agent: {name}
+# QPT Agent: {name}
 
 cd "$(dirname "$0")"
+AGENT_DIR=$(pwd)
+PORT={config.get('port', 5007)}
 
-# Setup venv if needed
-if [ ! -d "venv" ]; then
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-else
-    source venv/bin/activate
+echo "🚀 Starting QPT Agent: {name} on port $PORT"
+
+# 1. Kill any existing process on this port
+EXISTING_PID=$(lsof -t -i:$PORT)
+if [ ! -z "$EXISTING_PID" ]; then
+    echo "⚠️  Killing existing agent process $EXISTING_PID..."
+    kill -9 $EXISTING_PID
 fi
 
-# Run agent
-python agent_server.py
+# 2. Setup venv
+if [ ! -d "venv" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv venv
+fi
+
+source venv/bin/activate
+
+# 3. Install dependencies if needed
+if [ ! -f ".deps_installed" ]; then
+    echo "🛠️  Installing requirements..."
+    pip install -r requirements.txt && touch .deps_installed
+fi
+
+# 4. Start agent in background with proper redirection
+echo "🏃 Running agent server..."
+nohup python agent_server.py > agent.log 2>&1 &
+
+# 5. Wait a bit and check if it's running
+sleep 2
+NEW_PID=$(lsof -t -i:$PORT)
+if [ ! -z "$NEW_PID" ]; then
+    echo "✅ Agent started successfully (PID: $NEW_PID)"
+else
+    echo "❌ Failed to start agent. Check agent.log"
+    exit 1
+fi
 """
         script_path = package_dir / "start_agent.sh"
         script_path.write_text(script)
@@ -388,7 +419,7 @@ python agent_server.py
         config_json = {
             "name": name,
             "mode": config.get('mode', 'serve'),
-            "auth_token": config.get('auth_token', '')
+            "auth_token": config.get('auth_token', ''), "port": config.get('port', 5007)
         }
         (package_dir / "config.json").write_text(json.dumps(config_json, indent=2))
         
@@ -400,6 +431,7 @@ python agent_server.py
 uvicorn==0.24.0
 aiohttp==3.9.0
 pydantic==2.5.0
+requests==2.31.0
 """
         (package_dir / "requirements.txt").write_text(requirements)
     
@@ -407,7 +439,7 @@ pydantic==2.5.0
         """Copy agent_server.py from framework"""
         # Get path to agent_server.py in the framework
         framework_root = Path(__file__).parent.parent.parent
-        agent_server_src = framework_root / "performance" / "agents" / "agent_server.py"
+        agent_server_src = framework_root / "src" / "agents" / "agent_server.py"
         
         if agent_server_src.exists():
             shutil.copy(agent_server_src, package_dir / "agent_server.py")
@@ -415,5 +447,5 @@ pydantic==2.5.0
             # Fallback: create a note
             (package_dir / "COPY_AGENT_SERVER.txt").write_text(
                 f"Copy agent_server.py from:\n{agent_server_src}\n"
-                "Or from: performance/agents/agent_server.py"
+                "Or from: src/agents/agent_server.py"
             )

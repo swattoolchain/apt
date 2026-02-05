@@ -61,9 +61,9 @@ open performance_results/unified_test/unified_performance_report.html
 ## 📚 Documentation
 
 ### Getting Started
+- **[Distributed Testing Guide](docs/DISTRIBUTED_TESTING_GUIDE.md)** - **START HERE**: Full automated flow, onboarding, and CLI run instructions.
 - **[Getting Started](GETTING_STARTED.md)** - Complete beginner's guide with installation and first test
 - **[Repository Structure](STRUCTURE.md)** - New organized directory structure
-- **[Quick Reference](src/core/QUICKSTART.md)** - Quick reference for common tasks
 
 ### Core Concepts
 - **[Unified Testing](docs/UNIFIED_TESTING.md)** - Multi-tool unified testing approach
