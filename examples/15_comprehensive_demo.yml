@@ -73,6 +73,16 @@ workflows:
           print(f"I am running on {platform.node()} in {os.getcwd()}")
           result = {"host": platform.node(), "status": "online"}
 
+  # ──────────────────────────────────────────────────────────────────
+  # GROUP C: JMETER JMX DIRECT EXECUTION
+  # ──────────────────────────────────────────────────────────────────
+  jmx_direct_run: # jmx, performance
+    steps:
+      - name: jmeter_jmx_run
+        action: jmeter_test
+        agent: jmeter-server
+        jmx_file: "../jmx_files/api_test_plan.jmx"
+
 reporting:
   output_dir: "performance_results/comprehensive_demo"
   include:
