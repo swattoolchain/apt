@@ -489,6 +489,7 @@ python3 qptcli.py agent status \
        result = subprocess.run(['k6', 'run', 'test.js'], capture_output=True)
    ```
 
+
 3. **`agent_query`** - Fetch metrics from agent
    ```yaml
    - name: "get_metrics"
@@ -497,6 +498,239 @@ python3 qptcli.py agent status \
    ```
 
 ---
+
+## 🔀 Concurrent Execution with Threads
+
+### **Overview**
+
+ALL workflow actions now support the `threads` parameter for concurrent execution:
+- `api_call` - Concurrent HTTP requests
+- `agent_execute` - Concurrent remote code execution
+- `k6_test` - Uses `vus` (virtual users)
+- `jmeter_test` - Uses `threads` in thread_group_config
+
+### **The Threads Parameter**
+
+The `threads` parameter controls how many **concurrent executions** happen simultaneously.
+
+**Default**: If not specified, `threads` defaults to `1` (sequential execution).
+
+### **Total Requests Formula**
+
+```
+Total Requests = threads × step_iterations × workflow_iterations
+```
+
+### **Examples**
+
+#### **1. API Call with Threads**
+
+```yaml
+workflows:
+  api_load_test:
+    iterations: 2  # Workflow runs 2 times
+    steps:
+      # Single thread (default)
+      - name: baseline_api_call
+        action: api_call
+        url: "https://api.example.com/users"
+        method: GET
+        # threads: 1 (default)
+        # Total: 1 × 2 = 2 requests
+      
+      # Multiple concurrent threads
+      - name: concurrent_api_call
+        action: api_call
+        url: "https://api.example.com/posts"
+        method: GET
+        threads: 10  # 10 concurrent requests
+        # Total: 10 × 2 = 20 requests
+      
+      # Threads + Step Iterations
+      - name: high_load_api_call
+        action: api_call
+        url: "https://api.example.com/data"
+        method: GET
+        threads: 5      # 5 concurrent threads
+        iterations: 3   # Repeat 3 times
+        # Total: 5 × 3 × 2 = 30 requests
+```
+
+#### **2. Agent Execute with Threads**
+
+```yaml
+workflows:
+  validation_test:
+    steps:
+      - name: concurrent_validation
+        action: agent_execute
+        agent: validation-server
+        threads: 5  # 5 concurrent executions
+        code: |
+          import requests
+          import time
+          
+          # This code runs 5 times concurrently
+          thread_id = context.get('thread_id', 0)
+          print(f"Thread {thread_id} executing...")
+          
+          response = requests.get('https://api.example.com/validate')
+          result = {
+              'thread_id': thread_id,
+              'success': response.status_code == 200,
+              'data': response.json()
+          }
+```
+
+**Key Features:**
+- Each thread gets a unique `thread_id` in the context
+- All threads execute simultaneously
+- Results are tracked individually
+
+#### **3. Complete Example with All Features**
+
+```yaml
+workflows:
+  comprehensive_load:
+    iterations: 2  # Workflow runs 2 times
+    steps:
+      # Step 1: Light load
+      - name: light_load
+        action: api_call
+        url: "https://api.example.com/endpoint-a"
+        threads: 5
+        # Total: 5 × 2 = 10 requests
+      
+      # Step 2: Medium load with iterations
+      - name: medium_load
+        action: api_call
+        url: "https://api.example.com/endpoint-b"
+        threads: 10
+        iterations: 3
+        # Total: 10 × 3 × 2 = 60 requests
+      
+      # Step 3: Heavy load
+      - name: heavy_load
+        action: api_call
+        url: "https://api.example.com/endpoint-c"
+        threads: 20
+        # Total: 20 × 2 = 40 requests
+```
+
+**Grand Total**: 10 + 60 + 40 = **110 requests**
+
+### **Execution Flow**
+
+Understanding how threads, iterations, and parallel groups interact:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ EXECUTION HIERARCHY                                          │
+│                                                              │
+│ 1. Parallel Groups (Concurrent)                             │
+│    ├─ Workflow A (parallel with B)                         │
+│    │   └─ Workflow Iterations (Sequential)                 │
+│    │       └─ Step Iterations (Sequential)                 │
+│    │           └─ Threads (Concurrent) ← All at once       │
+│    │                                                        │
+│    └─ Workflow B (parallel with A)                         │
+│        └─ Workflow Iterations (Sequential)                 │
+│            └─ Step Iterations (Sequential)                 │
+│                └─ Threads (Concurrent) ← All at once       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Example with 5 threads, 2 iterations, 2 workflows in parallel group:**
+
+```yaml
+workflows:
+  workflow_A:
+    group: "parallel_group"
+    iterations: 2
+    steps:
+      - name: api_test_A
+        action: api_call
+        url: "https://api.example.com/a"
+        threads: 5
+        iterations: 2
+
+  workflow_B:
+    group: "parallel_group"
+    iterations: 2
+    steps:
+      - name: api_test_B
+        action: api_call
+        url: "https://api.example.com/b"
+        threads: 5
+        iterations: 2
+```
+
+**Execution Timeline:**
+
+```
+T0: Both workflows start simultaneously
+    ↓
+T1: Workflow A: 5 concurrent requests | Workflow B: 5 concurrent requests
+    (Step Iteration 1, Workflow Iteration 1)
+    ↓
+T2: Workflow A: 5 concurrent requests | Workflow B: 5 concurrent requests
+    (Step Iteration 2, Workflow Iteration 1)
+    ↓
+T3: Workflow A: 5 concurrent requests | Workflow B: 5 concurrent requests
+    (Step Iteration 1, Workflow Iteration 2)
+    ↓
+T4: Workflow A: 5 concurrent requests | Workflow B: 5 concurrent requests
+    (Step Iteration 2, Workflow Iteration 2)
+    ↓
+T5: Both workflows complete
+```
+
+**Total Requests per Workflow**: 5 threads × 2 step iterations × 2 workflow iterations = **20 requests**
+**Grand Total**: 20 + 20 = **40 requests**
+**Peak Concurrency**: 10 (5 from A + 5 from B running simultaneously)
+
+### **Report Display**
+
+The HTML report shows thread information for each step:
+
+```
+Step: concurrent_api_call
+  Agent: local
+  Threads: 10
+  Iterations: 3
+  Total Requests: 30  (10 threads × 3 iterations)
+  Success Rate: 100%
+  Avg Response Time: 234ms
+```
+
+### **Best Practices**
+
+1. **Start Small**: Begin with low thread counts (1-5) and increase gradually
+2. **Monitor Resources**: Watch CPU, memory, and network on both client and server
+3. **Realistic Load**: Use thread counts that simulate real-world usage
+4. **Combine Wisely**: Use threads for concurrency, iterations for sustained load
+
+**Load Profiles:**
+- **Light**: 1-10 threads
+- **Medium**: 10-50 threads
+- **Heavy**: 50-200 threads
+- **Stress**: 200+ threads
+
+### **Comparison with k6 and JMeter**
+
+| Action | Thread Parameter | Default |
+|--------|------------------|---------|
+| `api_call` | `threads` | 1 |
+| `agent_execute` | `threads` | 1 |
+| `k6_test` | `options.vus` | 1 |
+| `jmeter_test` | `thread_group_config.threads` | 1 |
+
+**All actions now have consistent thread support!**
+
+For detailed execution flow diagrams, see: `EXECUTION_FLOW_EXPLAINED.md`
+
+---
+
 
 ## 📊 Running Tests
 

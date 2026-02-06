@@ -32,12 +32,13 @@ class UnifiedReportGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
-    def generate_unified_html_report(self, filename: str = "unified_performance_report.html") -> Path:
+    def generate_unified_html_report(self, filename: str = "unified_performance_report.html", template: str = "detailed") -> Path:
         """
         Generate unified HTML report with all test results.
         
         Args:
             filename: Name of the HTML file
+            template: Report template to use ('detailed' or 'compact')
             
         Returns:
             Path to generated report
@@ -53,14 +54,17 @@ class UnifiedReportGenerator:
         # Group results by tool
         grouped_results = self._group_by_tool(normalized_results)
         
-        # Generate HTML
-        html_content = self._render_compact_template(normalized_results, summary, grouped_results)
+        # Generate HTML based on template
+        if template == "compact":
+            html_content = self._render_compact_tabulator_template(normalized_results, summary, grouped_results)
+        else:
+            html_content = self._render_compact_template(normalized_results, summary, grouped_results)
         
         # Save report
         with open(report_path, 'w') as f:
             f.write(html_content)
         
-        logger.info(f"Unified HTML report generated: {report_path}")
+        logger.info(f"Unified HTML report generated: {report_path} (template: {template})")
         return report_path
     
     def _normalize_results(self) -> List[Dict]:
@@ -128,6 +132,8 @@ class UnifiedReportGenerator:
         for result in self.results.get('jmeter', []):
             if result['status'] == 'success' and 'summary' in result:
                 jmeter_summary = result.get('summary', {})
+                load_profile = result.get('load_profile', {})
+                request_details = result.get('request_details', [])
                 
                 normalized.append({
                     'test_name': result['test_name'],
@@ -145,6 +151,8 @@ class UnifiedReportGenerator:
                         'success_rate': jmeter_summary.get('success_rate', 0),
                         'throughput': jmeter_summary.get('total_samples', 0) / max(jmeter_summary.get('avg_response_time', 1), 1) * 1000
                     },
+                    'load_profile': load_profile,
+                    'request_details': request_details,
                     'details': jmeter_summary
                 })
             else:
@@ -154,6 +162,8 @@ class UnifiedReportGenerator:
                     'type': 'API',
                     'status': result['status'],
                     'metrics': {},
+                    'load_profile': {},
+                    'request_details': [],
                     'error': result.get('error', 'Unknown error')
                 })
         
@@ -276,13 +286,13 @@ class UnifiedReportGenerator:
         }
         
         .metric-value-compact {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
             color: #1a202c;
         }
         
         .metric-unit-compact {
-            font-size: 14px;
+            font-size: 13px;
             color: #4a5568;
             margin-left: 2px;
         }
@@ -359,14 +369,14 @@ class UnifiedReportGenerator:
         }
         
         .test-name {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             color: #2d3748;
         }
         
         .tool-badge {
             display: inline-block;
-            padding: 3px 10px;
+            padding: 2px 8px;
             border-radius: 10px;
             font-size: 11px;
             font-weight: 600;
@@ -391,7 +401,7 @@ class UnifiedReportGenerator:
         
         .status-badge {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
@@ -429,7 +439,7 @@ class UnifiedReportGenerator:
         }
         
         .metric-item-value {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: #2d3748;
             margin-top: 2px;
@@ -477,7 +487,7 @@ class UnifiedReportGenerator:
         .details-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px;
+            font-size: 12px;
             margin-top: 8px;
         }
         
@@ -533,7 +543,7 @@ class UnifiedReportGenerator:
         }
 
         .card-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #718096;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -542,7 +552,7 @@ class UnifiedReportGenerator:
         }
 
         .card-value {
-            font-size: 32px;
+            font-size: 26px;
             font-weight: 700;
             color: #2d3748;
         }
@@ -595,7 +605,7 @@ class UnifiedReportGenerator:
         details > summary::before {
             content: '▶';
             display: inline-block;
-            font-size: 10px;
+            font-size: 12px;
             margin-right: 12px;
             transition: transform 0.2s;
             color: #718096;
@@ -626,7 +636,7 @@ class UnifiedReportGenerator:
         
         details.sub-details > summary {
             background: #f7fafc;
-            padding: 12px 16px;
+            padding: 10px 16px;
             font-size: 13px;
         }
         
@@ -783,7 +793,7 @@ class UnifiedReportGenerator:
                         
                         <!-- Detailed Metrics Section -->
                         <div id="k6-{{ result.test_name }}-{{ loop.index }}" class="details-section">
-                            <strong style="font-size: 12px; color: #2d3748;">Detailed k6 Metrics</strong>
+                            <strong style="font-size: 14px; color: #2d3748;">Detailed k6 Metrics</strong>
                             <table class="details-table">
                                 <thead>
                                     <tr>
@@ -904,12 +914,33 @@ class UnifiedReportGenerator:
                             </div>
                         </div>
                         
+                        <!-- Load Profile (Threads & Loops) -->
+                        {% if result.load_profile and result.load_profile.total_threads %}
+                        <div style="margin-top: 12px; padding: 10px; background: #edf2f7; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                            <div style="font-size: 12px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">⚙️ Load Profile</div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 10px; color: #718096; text-transform: uppercase;">Threads (Users)</div>
+                                    <div style="font-size: 18px; font-weight: 700; color: #f59e0b;">{{ result.load_profile.total_threads }}</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 10px; color: #718096; text-transform: uppercase;">Loop Count</div>
+                                    <div style="font-size: 18px; font-weight: 700; color: #f59e0b;">{{ result.load_profile.total_loops }}</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 10px; color: #718096; text-transform: uppercase;">Expected Reqs</div>
+                                    <div style="font-size: 18px; font-weight: 700; color: #f59e0b;">{{ result.load_profile.expected_requests }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         <!-- Expand Button -->
                         <button class="expand-btn" onclick="toggleDetails('jmeter-{{ result.test_name }}-{{ loop.index }}')">📊 View Detailed Metrics</button>
                         
                         <!-- Detailed Metrics Section -->
                         <div id="jmeter-{{ result.test_name }}-{{ loop.index }}" class="details-section">
-                            <strong style="font-size: 12px; color: #2d3748;">Detailed JMeter Metrics</strong>
+                            <strong style="font-size: 14px; color: #2d3748;">Detailed JMeter Metrics</strong>
                             <table class="details-table">
                                 <thead>
                                     <tr>
@@ -959,6 +990,39 @@ class UnifiedReportGenerator:
                                     {% endif %}
                                 </tbody>
                             </table>
+                            
+                            <!-- Per-Request Details -->
+                            {% if result.request_details and result.request_details|length > 0 %}
+                            <div style="margin-top: 16px;">
+                                <strong style="font-size: 14px; color: #2d3748;">📋 Request-by-Request Breakdown</strong>
+                                <table class="details-table" style="margin-top: 8px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Request Name</th>
+                                            <th>Total Reqs</th>
+                                            <th>Success</th>
+                                            <th>Errors</th>
+                                            <th>Avg (ms)</th>
+                                            <th>P95 (ms)</th>
+                                            <th>Success %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for req in result.request_details %}
+                                        <tr>
+                                            <td><strong>{{ req.name }}</strong></td>
+                                            <td>{{ req.total_requests }}</td>
+                                            <td style="color: #22543d;">{{ req.success_count }}</td>
+                                            <td style="color: #742a2a;">{{ req.error_count }}</td>
+                                            <td>{{ "%.0f"|format(req.avg_response_time) }}</td>
+                                            <td>{{ "%.0f"|format(req.p95) }}</td>
+                                            <td>{{ "%.1f"|format(req.success_rate * 100) }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                         {% if result.error %}
@@ -1006,64 +1070,65 @@ class UnifiedReportGenerator:
                         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
                             <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
                                 <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Avg Duration</div>
-                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.avg_duration) }}s</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.avg_duration) }}s</div>
                             </div>
                             <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
                                 <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Min Duration</div>
-                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.min_duration) }}s</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.min_duration) }}s</div>
                             </div>
                             <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
                                 <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Max Duration</div>
-                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.max_duration) }}s</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(workflow.workflow_summary.max_duration) }}s</div>
                             </div>
                             <div style="background: #f7fafc; padding: 12px; border-radius: 6px;">
                                 <div style="font-size: 11px; color: #718096; margin-bottom: 4px;">Total Steps</div>
-                                <div style="font-size: 18px; font-weight: 600; color: #2d3748;">{{ workflow.step_breakdown|length }}</div>
+                                <div style="font-size: 17px; font-weight: 600; color: #2d3748;">{{ workflow.step_breakdown|length }}</div>
                             </div>
                         </div>
                         
                         <!-- Step Breakdown Table -->
                         <h4 style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px;">📋 Step-by-Step Breakdown</h4>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px;">
                             <thead>
                                 <tr style="background: #f7fafc; border-bottom: 2px solid #e2e8f0;">
                                     <th style="padding: 10px; text-align: left; font-weight: 600; color: #4a5568;">Step</th>
-                                    <th style="padding: 10px; text-align: left; font-weight: 600; color: #4a5568;">Agent</th>
-                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Iterations</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Threads</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Loops</th>
+                                    <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Total Req</th>
                                     <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Avg Time</th>
                                     <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Success</th>
-                                    <th style="padding: 10px; text-align: right; font-weight: 600; color: #4a5568;">Total Time</th>
                                     <th style="padding: 10px; text-align: center; font-weight: 600; color: #4a5568;">Details</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for step_name, step_data in workflow.step_breakdown.items() %}
                                 <tr style="border-bottom: 1px solid #e2e8f0; {% if step_data.iteration_config.total_iterations > 1 %}background: #fffbeb;{% endif %}">
-                                    <td style="padding: 10px; font-weight: 500; color: #2d3748;">
-                                        {{ step_name }}
+                                    <td style="padding: 8px; font-weight: 500; color: #2d3748;">
+                                        {{ step_name }}<br/>
+                                        <span class="tool-badge" style="background: #e2e8f0; color: #4a5568; font-weight: normal; font-size: 10px; padding: 1px 4px;">{{ step_data.agent }}</span>
                                     </td>
-                                    <td style="padding: 10px; color: #4a5568;">
-                                        <span class="tool-badge" style="background: #e2e8f0; color: #4a5568; font-weight: normal;">{{ step_data.agent }}</span>
+                                    <td style="padding: 8px; text-align: center; font-family: monospace; color: #4a5568;">
+                                        {{ step_data.iteration_config.threads|default(1) }}
                                     </td>
-                                    <td style="padding: 10px; text-align: center; font-family: monospace; color: #4a5568;">
+                                    <td style="padding: 8px; text-align: center; font-family: monospace; color: #4a5568;">
                                         {{ step_data.iteration_config.display }}
                                     </td>
-                                    <td style="padding: 10px; text-align: right; color: #2d3748;">
+                                    <td style="padding: 8px; text-align: center; font-family: monospace; font-weight: 600; color: #2d3748;">
+                                        {{ step_data.iteration_config.total_requests|default(step_data.iteration_config.total_iterations) }}
+                                    </td>
+                                    <td style="padding: 8px; text-align: right; color: #2d3748;">
                                         {{ "%.3f"|format(step_data.timing.avg_duration) }}s
                                     </td>
-                                    <td style="padding: 10px; text-align: right;">
+                                    <td style="padding: 8px; text-align: right;">
                                         <span style="color: {% if step_data.success.success_rate >= 0.95 %}#10b981{% else %}#ef4444{% endif %}; font-weight: 600;">
                                             {{ step_data.success.success_percentage }}
                                         </span>
                                     </td>
-                                    <td style="padding: 10px; text-align: right; color: #4a5568;">
-                                        {{ "%.2f"|format(step_data.timing.total_time) }}s
-                                    </td>
-                                    <td style="padding: 10px; text-align: center;">
+                                    <td style="padding: 8px; text-align: center;">
                                         {% if step_data.iteration_config.total_iterations > 1 %}
-                                        <button class="expand-btn" onclick="toggleDetails(this)" style="font-size: 11px; padding: 4px 8px;">📊 Details</button>
+                                        <button class="expand-btn" onclick="toggleDetails(this)" style="font-size: 10px; padding: 2px 6px;">📋 Stats</button>
                                         {% else %}
-                                        <span style="color: #cbd5e0; font-size: 11px;">—</span>
+                                        <span style="color: #cbd5e0; font-size: 10px;">—</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -1071,49 +1136,127 @@ class UnifiedReportGenerator:
                                 {% if step_data.iteration_config.total_iterations > 1 %}
                                 <tr>
                                     <td colspan="7" style="padding: 0;">
-                                        <div id="workflow-{{ step_name }}-{{ loop.index }}" class="details-section">
-                                            <div style="padding: 16px; background: #fffbeb;">
-                                                <strong style="font-size: 12px; color: #2d3748;">Detailed Metrics: {{ step_name }}</strong>
-                                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
-                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                        <div style="font-size: 10px; color: #718096;">Total Iterations</div>
-                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ step_data.iteration_config.total_iterations }}</div>
+                                            <div id="workflow-{{ step_name }}-{{ loop.index }}" class="details-section">
+                                                <div style="padding: 12px; background: #fffbeb;">
+                                                    <strong style="font-size: 12px; color: #2d3748;">Detailed Metrics: {{ step_name }}</strong>
+                                                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">Total Iterations</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #2d3748;">{{ step_data.iteration_config.total_iterations }}</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #d1fae5;">
+                                                            <div style="font-size: 10px; color: #718096;">Min Time</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #059669;">{{ "%.3f"|format(step_data.timing.min_duration) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fecaca;">
+                                                            <div style="font-size: 10px; color: #718096;">Max Time</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #dc2626;">{{ "%.3f"|format(step_data.timing.max_duration) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">Avg Time</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.avg_duration) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">Median</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.median_duration) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">P95</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p95) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">P99</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p99) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">Std Dev</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.std_dev) }}s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #dbeafe;">
+                                                            <div style="font-size: 10px; color: #718096;">Throughput</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #1e40af;">{{ "%.2f"|format(step_data.throughput.requests_per_second) }} req/s</div>
+                                                        </div>
+                                                        <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
+                                                            <div style="font-size: 10px; color: #718096;">Success Rate</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: {% if step_data.success.success_rate >= 0.95 %}#059669{% else %}#dc2626{% endif %};">{{ step_data.success.success_percentage }}</div>
+                                                        </div>
                                                     </div>
-                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                        <div style="font-size: 10px; color: #718096;">P95</div>
-                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p95) }}s</div>
+                                                    
+                                                    <!-- Performance Degradation Warning -->
+                                                    {% if step_data.degradation and step_data.degradation.degradation_detected %}
+                                                    <div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
+                                                        <div style="font-size: 11px; font-weight: 600; color: #991b1b; margin-bottom: 4px;">⚠️ Performance Degradation Detected</div>
+                                                        <div style="font-size: 11px; color: #7f1d1d;">
+                                                            Performance degrades by {{ "%.1f"|format(step_data.degradation.degradation_percentage) }}% from iteration 1 to {{ step_data.iteration_config.iterations_per_workflow }}.
+                                                            First avg: {{ "%.3f"|format(step_data.degradation.first_iteration_avg) }}s, 
+                                                            Last avg: {{ "%.3f"|format(step_data.degradation.last_iteration_avg) }}s
+                                                        </div>
                                                     </div>
-                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                        <div style="font-size: 10px; color: #718096;">P99</div>
-                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.p99) }}s</div>
-                                                    </div>
-                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                        <div style="font-size: 10px; color: #718096;">Throughput</div>
-                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.2f"|format(step_data.throughput.iterations_per_second) }} req/s</div>
-                                                    </div>
-                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                        <div style="font-size: 10px; color: #718096;">Std Dev</div>
-                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.std_dev) }}s</div>
-                                                    </div>
-                                                    <div style="background: white; padding: 10px; border-radius: 4px;">
-                                                        <div style="font-size: 10px; color: #718096;">Median</div>
-                                                        <div style="font-size: 16px; font-weight: 600; color: #2d3748;">{{ "%.3f"|format(step_data.timing.median_duration) }}s</div>
-                                                    </div>
+                                                    {% endif %}
+                                                    
+                                                    <!-- Individual Request Breakdown -->
+                                                    {% set iteration_results = [] %}
+                                                    {% for wf_exec in workflow.workflow_executions %}
+                                                        {% for step in wf_exec.steps %}
+                                                            {% if step.name == step_name %}
+                                                                {% for result in step.iteration_results %}
+                                                                    {% set _ = iteration_results.append(result) %}
+                                                                {% endfor %}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    {% endfor %}
+                                                    
+                                                    {% if iteration_results|length > 0 %}
+                                                    <details style="margin-top: 12px;">
+                                                        <summary style="cursor: pointer; font-size: 11px; font-weight: 600; color: #2d3748; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                                            📋 View Individual Request Results ({{ iteration_results|length }} requests)
+                                                        </summary>
+                                                        <div style="margin-top: 8px; max-height: 300px; overflow-y: auto; background: white; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                                            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                                                                <thead style="position: sticky; top: 0; background: #f7fafc; z-index: 1;">
+                                                                    <tr style="border-bottom: 2px solid #e2e8f0;">
+                                                                        <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #4a5568;">#</th>
+                                                                        <th style="padding: 6px 8px; text-align: right; font-weight: 600; color: #4a5568;">Duration</th>
+                                                                        <th style="padding: 6px 8px; text-align: center; font-weight: 600; color: #4a5568;">Status</th>
+                                                                        <th style="padding: 6px 8px; text-align: left; font-weight: 600; color: #4a5568;">Details</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for result in iteration_results %}
+                                                                    <tr style="border-bottom: 1px solid #f0f0f0; {% if not result.success %}background: #fef2f2;{% endif %}">
+                                                                        <td style="padding: 4px 8px; color: #718096;">{{ loop.index }}</td>
+                                                                        <td style="padding: 4px 8px; text-align: right; font-family: monospace; color: #2d3748;">
+                                                                            {{ "%.3f"|format(result.duration) }}s
+                                                                        </td>
+                                                                        <td style="padding: 4px 8px; text-align: center;">
+                                                                            {% if result.success %}
+                                                                            <span style="color: #059669; font-weight: 600;">✓</span>
+                                                                            {% else %}
+                                                                            <span style="color: #dc2626; font-weight: 600;">✗</span>
+                                                                            {% endif %}
+                                                                        </td>
+                                                                        <td style="padding: 4px 8px; color: #718096; font-size: 10px;">
+                                                                            {% if result.data %}
+                                                                                {% if result.data.status_code %}
+                                                                                    HTTP {{ result.data.status_code }}
+                                                                                {% elif result.data.status %}
+                                                                                    {{ result.data.status }}
+                                                                                {% else %}
+                                                                                    —
+                                                                                {% endif %}
+                                                                            {% else %}
+                                                                                —
+                                                                            {% endif %}
+                                                                        </td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </details>
+                                                    {% endif %}
                                                 </div>
-                                                
-                                                <!-- Performance Degradation Warning -->
-                                                {% if step_data.degradation and step_data.degradation.degradation_detected %}
-                                                <div style="margin-top: 12px; padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px;">
-                                                    <div style="font-size: 11px; font-weight: 600; color: #991b1b; margin-bottom: 4px;">⚠️ Performance Degradation Detected</div>
-                                                    <div style="font-size: 11px; color: #7f1d1d;">
-                                                        Performance degrades by {{ "%.1f"|format(step_data.degradation.degradation_percentage) }}% from iteration 1 to {{ step_data.iteration_config.iterations_per_workflow }}.
-                                                        First avg: {{ "%.3f"|format(step_data.degradation.first_iteration_avg) }}s, 
-                                                        Last avg: {{ "%.3f"|format(step_data.degradation.last_iteration_avg) }}s
-                                                    </div>
-                                                </div>
-                                                {% endif %}
                                             </div>
-                                        </div>
                                     </td>
                                 </tr>
                                 {% endif %}
@@ -1321,6 +1464,72 @@ class UnifiedReportGenerator:
             summary=summary,
             grouped=grouped,
             workflows=self.results.get('workflows', [])
+        )
+        
+        return html
+    
+    def _render_compact_tabulator_template(self, normalized_results: List[Dict], summary: Dict, grouped: Dict) -> str:
+        """Render compact Tabulator.js template from external file."""
+        
+        # Load the compact template file
+        template_path = Path(__file__).parent / "compact_report_template.html"
+        
+        if not template_path.exists():
+            logger.warning(f"Compact template not found at {template_path}, falling back to detailed template")
+            return self._render_compact_template(normalized_results, summary, grouped)
+        
+        with open(template_path, 'r') as f:
+            template_str = f.read()
+        
+        # Prepare data for template
+        workflows_json = json.dumps(self.results.get('workflows', []))
+        
+        # Calculate metadata
+        total_workflows = len(self.results.get('workflows', []))
+        total_duration = sum(wf.get('workflow_summary', {}).get('total_duration', 0) 
+                           for wf in self.results.get('workflows', []))
+        
+        # Calculate success rate
+        total_steps = 0
+        successful_steps = 0
+        for wf in self.results.get('workflows', []):
+            for step_name, step_data in wf.get('step_breakdown', {}).items():
+                total_steps += 1
+                if step_data.get('success', {}).get('success_rate', 0) >= 0.95:
+                    successful_steps += 1
+        
+        success_rate = successful_steps / total_steps if total_steps > 0 else 0
+        
+        # Calculate total requests
+        total_requests = sum(
+            step_data.get('iteration_config', {}).get('total_requests', 0)
+            for wf in self.results.get('workflows', [])
+            for step_data in wf.get('step_breakdown', {}).values()
+        )
+        
+        metadata = {
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'total_duration': total_duration,
+            'success_rate': success_rate,
+            'total_requests': total_requests
+        }
+        
+        test_info = {
+            'test_suite_name': 'QPT Performance Test',
+            'description': 'Unified Performance Testing Report'
+        }
+        
+        # Render template
+        env = Environment(loader=BaseLoader())
+        template = env.from_string(template_str)
+        
+        html = template.render(
+            workflows=self.results.get('workflows', []),
+            workflows_json=workflows_json,
+            k6=self.results.get('k6', []),
+            jmeter=self.results.get('jmeter', []),
+            metadata=metadata,
+            test_info=test_info
         )
         
         return html

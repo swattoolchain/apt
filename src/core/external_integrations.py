@@ -451,36 +451,104 @@ class JMeterIntegration:
         logger.info(f"JMeter JMX saved to {output_path}")
     
     @staticmethod
-    def parse_jtl_results(jtl_file: str) -> Dict[str, Any]:
+    def parse_jtl_results(jtl_file: str, jmx_file: str = None) -> Dict[str, Any]:
         """
-        Parse JMeter JTL results file (CSV format).
+        Parse JMeter JTL results file (CSV format) and extract thread/loop config from JMX.
         
         Args:
             jtl_file: Path to JTL file
+            jmx_file: Optional path to JMX file to extract thread/loop configuration
             
         Returns:
-            Parsed results dictionary
+            Parsed results dictionary with thread count, loop count, and per-request details
         """
         try:
             import csv
+            import xml.etree.ElementTree as ET
+            from collections import defaultdict
             
             results = {
                 'samples': [],
-                'summary': {}
+                'summary': {},
+                'load_profile': {},
+                'request_details': []
             }
+            
+            # Extract thread and loop configuration from JMX if provided
+            if jmx_file and Path(jmx_file).exists():
+                try:
+                    tree = ET.parse(jmx_file)
+                    root = tree.getroot()
+                    
+                    # Find all ThreadGroups
+                    thread_groups = []
+                    for tg in root.findall('.//ThreadGroup'):
+                        num_threads_elem = tg.find(".//intProp[@name='ThreadGroup.num_threads']")
+                        loops_elem = tg.find(".//stringProp[@name='LoopController.loops']")
+                        ramp_elem = tg.find(".//intProp[@name='ThreadGroup.ramp_time']")
+                        name_elem = tg.get('testname', 'Unknown')
+                        
+                        thread_groups.append({
+                            'name': name_elem,
+                            'threads': int(num_threads_elem.text) if num_threads_elem is not None else 1,
+                            'loops': int(loops_elem.text) if loops_elem is not None else 1,
+                            'ramp_time': int(ramp_elem.text) if ramp_elem is not None else 0
+                        })
+                    
+                    # Calculate totals
+                    total_threads = sum(tg['threads'] for tg in thread_groups)
+                    total_loops = sum(tg['loops'] for tg in thread_groups)
+                    
+                    results['load_profile'] = {
+                        'thread_groups': thread_groups,
+                        'total_threads': total_threads,
+                        'total_loops': total_loops,
+                        'expected_requests': total_threads * total_loops  # Base expectation
+                    }
+                    
+                    logger.info(f"Extracted JMX config: {total_threads} threads, {total_loops} loops")
+                except Exception as e:
+                    logger.warning(f"Could not parse JMX file: {e}")
+            
+            # Parse JTL results
+            request_by_label = defaultdict(list)
             
             with open(jtl_file, 'r') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    results['samples'].append({
+                    sample = {
                         'timestamp': int(row.get('timeStamp', 0)),
                         'elapsed': int(row.get('elapsed', 0)),
                         'label': row.get('label', ''),
                         'success': row.get('success', 'true') == 'true',
-                        'bytes': int(row.get('bytes', 0))
-                    })
+                        'bytes': int(row.get('bytes', 0)),
+                        'thread_name': row.get('threadName', ''),
+                        'response_code': row.get('responseCode', ''),
+                        'latency': int(row.get('Latency', 0))
+                    }
+                    results['samples'].append(sample)
+                    request_by_label[sample['label']].append(sample)
             
-            # Calculate summary
+            # Generate per-request details
+            for label, samples in request_by_label.items():
+                elapsed_times = [s['elapsed'] for s in samples]
+                success_count = len([s for s in samples if s['success']])
+                
+                results['request_details'].append({
+                    'name': label,
+                    'total_requests': len(samples),
+                    'success_count': success_count,
+                    'error_count': len(samples) - success_count,
+                    'success_rate': success_count / len(samples) if samples else 0,
+                    'avg_response_time': sum(elapsed_times) / len(elapsed_times) if elapsed_times else 0,
+                    'min_response_time': min(elapsed_times) if elapsed_times else 0,
+                    'max_response_time': max(elapsed_times) if elapsed_times else 0,
+                    'p50': sorted(elapsed_times)[len(elapsed_times)//2] if elapsed_times else 0,
+                    'p95': sorted(elapsed_times)[int(len(elapsed_times)*0.95)] if elapsed_times else 0,
+                    'p99': sorted(elapsed_times)[int(len(elapsed_times)*0.99)] if elapsed_times else 0
+                })
+            
+            # Calculate overall summary
             if results['samples']:
                 elapsed_times = [s['elapsed'] for s in results['samples']]
                 success_count = len([s for s in results['samples'] if s['success']])

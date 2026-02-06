@@ -1,0 +1,46 @@
+# Simple Local API Test with Threads (No Agents Required)
+
+test_info:
+  test_suite_name: "Local API Threads Test"
+  description: "Testing threads feature with local API calls only"
+  version: "1.0"
+  test_suite_type: "unified"
+
+# NO AGENTS - All tests run locally
+
+workflows:
+  local_api_load_test:
+    iterations: 2  # Run workflow 2 times
+    steps:
+      # Test 1: Single thread (baseline)
+      - name: single_thread_test
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/todos/1"
+        method: GET
+        # threads: 1 (default)
+        # Expected: 1 thread × 2 workflow iterations = 2 requests
+
+      # Test 2: 5 concurrent threads
+      - name: five_thread_test
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts/1"
+        method: GET
+        threads: 5
+        # Expected: 5 threads × 2 workflow iterations = 10 requests
+
+      # Test 3: 3 threads with 2 iterations
+      - name: multi_iteration_test
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/users/1"
+        method: GET
+        threads: 3
+        iterations: 2
+        # Expected: 3 threads × 2 step iterations × 2 workflow iterations = 12 requests
+
+reporting:
+  output_dir: "performance_results/local_threads_test"
+  include:
+    - workflows
+  formats:
+    - html
+    - json

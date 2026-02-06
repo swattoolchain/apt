@@ -1,0 +1,53 @@
+# Example: API Call and Custom Validation with Threads
+
+test_info:
+  test_suite_name: "API Call with Threads Demo"
+  description: "Demonstrates how to use threads parameter for api_call and agent_execute actions"
+  version: "1.0"
+  test_suite_type: "unified"
+
+workflows:
+  api_load_test:
+    iterations: 2  # Run the workflow 2 times
+    steps:
+      # Example 1: API Call with 1 thread (default)
+      - name: single_thread_api_call
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/todos/1"
+        method: GET
+        # threads: 1  # Optional, defaults to 1
+        # Total requests = 1 thread × 2 iterations = 2 requests
+
+      # Example 2: API Call with 5 concurrent threads
+      - name: multi_thread_api_call
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: GET
+        threads: 5  # 5 concurrent requests per iteration
+        # Total requests = 5 threads × 2 iterations = 10 requests
+
+      # Example 3: API Call with threads AND iterations
+      - name: high_load_api_call
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/users"
+        method: GET
+        threads: 10  # 10 concurrent threads
+        iterations: 3  # Repeat 3 times
+        # Total requests = 10 threads × 3 iterations × 2 workflow iterations = 60 requests
+
+      # Example 4: Custom validation with threads (requires agent)
+      # - name: custom_validation
+      #   action: agent_execute
+      #   agent: jmeter-server
+      #   threads: 5  # 5 concurrent executions
+      #   context:
+      #     env: "production"
+      #   # Total executions = 5 threads × 2 workflow iterations = 10 executions
+
+reporting:
+  output_dir: "performance_results/api_threads_demo"
+  include:
+    - workflows
+  formats:
+    - html
+    - json

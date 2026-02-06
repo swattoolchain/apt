@@ -245,9 +245,9 @@ class UnifiedTestRunner:
             if process.returncode == 0:
                 logger.info(f"JMeter test completed successfully: {test_name}")
                 
-                # Parse results
+                # Parse results - pass JMX file to extract thread/loop config
                 if results_file.exists():
-                    results = JMeterIntegration.parse_jtl_results(str(results_file))
+                    results = JMeterIntegration.parse_jtl_results(str(results_file), str(jmx_path))
                 else:
                     results = {'error': 'No results file found'}
                 

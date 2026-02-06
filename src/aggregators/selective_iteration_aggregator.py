@@ -30,6 +30,7 @@ class SelectiveIterationMetrics:
                 self.step_configs[step_name] = {
                     'agent': step.get('agent', 'local'),
                     'iterations_per_workflow': step.get('iterations', 1),
+                    'threads': step.get('threads', 1),
                     'total_iterations': 0
                 }
             
@@ -84,15 +85,32 @@ def aggregate_selective_iterations(
         iterations_per_workflow = config_info['iterations_per_workflow']
         total_iterations = len(iterations)
         
-        # Calculate statistics
-        sorted_durations = sorted(durations)
-        
+        # Calculate Total Requests
+        total_requests = 0
+        for it in iterations:
+            it_data = it.get('data', {})
+            if isinstance(it_data, dict):
+                # Check for k6 metrics
+                metrics_data = it_data.get('metrics', {})
+                if 'http_reqs' in metrics_data:
+                    total_requests += metrics_data.get('http_reqs', {}).get('count', 1)
+                # Check for JMeter metrics
+                elif 'total_requests' in it_data:
+                    total_requests += it_data.get('total_requests', 0)
+                # Check for playwright or generic
+                else:
+                    total_requests += 1
+            else:
+                total_requests += 1
+
         step_breakdown[step_name] = {
             'agent': config_info['agent'],
             'iteration_config': {
                 'iterations_per_workflow': iterations_per_workflow,
+                'threads': config_info.get('threads', 1),
                 'total_workflows': len(metrics.workflows),
                 'total_iterations': total_iterations,
+                'total_requests': total_requests,
                 'display': f"{iterations_per_workflow}x{len(metrics.workflows)}"
             },
             'timing': {
@@ -102,9 +120,9 @@ def aggregate_selective_iterations(
                 'median_duration': statistics.median(durations),
                 'std_dev': statistics.stdev(durations) if len(durations) > 1 else 0,
                 'total_time': sum(durations),
-                'p50': sorted_durations[int(len(sorted_durations) * 0.50)],
-                'p95': sorted_durations[int(len(sorted_durations) * 0.95)],
-                'p99': sorted_durations[int(len(sorted_durations) * 0.99)]
+                'p50': sorted(durations)[int(len(durations) * 0.50)] if durations else 0,
+                'p95': sorted(durations)[int(len(durations) * 0.95)] if durations else 0,
+                'p99': sorted(durations)[int(len(durations) * 0.99)] if durations else 0
             },
             'success': {
                 'total_success': len(successes),
@@ -114,6 +132,7 @@ def aggregate_selective_iterations(
             },
             'throughput': {
                 'iterations_per_second': total_iterations / sum(durations) if sum(durations) > 0 else 0,
+                'requests_per_second': total_requests / sum(durations) if sum(durations) > 0 else 0,
                 'avg_time_per_iteration': sum(durations) / total_iterations if total_iterations > 0 else 0
             }
         }

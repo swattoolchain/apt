@@ -885,22 +885,61 @@ except Exception as e:
                     # SYNC EXECUTION (Original blocking mode)
                     logger.debug(f"Step '{step_name}' using SYNC execution on agent '{agent_id}'")
                     
+                    # Support concurrent threads for agent execution
+                    num_threads = step.get('threads', 1)
                     client = await self.agent_registry.get_client(agent_id)
+                    
                     for j in range(step_iterations):
-                        start_t = time.time()
-                        result = await client.execute(
-                            code=code,
-                            context={**context, 'action': action, 'step_config': step},
-                            tags={**tags, 'step': step_name, 'iteration': str(j)},
-                            timeout=timeout
-                        )
-                        duration = time.time() - start_t
-                        step_results.append({
-                            'duration': result.get('duration', duration),
-                            'success': result.get('status') != 'error',
-                            'data': result,
-                            'execution_mode': 'sync'
-                        })
+                        if num_threads > 1:
+                            # Concurrent thread execution
+                            tasks = []
+                            for thread_idx in range(num_threads):
+                                tasks.append(
+                                    client.execute(
+                                        code=code,
+                                        context={**context, 'action': action, 'step_config': step, 'thread_id': thread_idx},
+                                        tags={**tags, 'step': step_name, 'iteration': str(j), 'thread': str(thread_idx)},
+                                        timeout=timeout
+                                    )
+                                )
+                            
+                            start_t = time.time()
+                            thread_results = await asyncio.gather(*tasks, return_exceptions=True)
+                            
+                            for thread_idx, result in enumerate(thread_results):
+                                if isinstance(result, Exception):
+                                    step_results.append({
+                                        'duration': time.time() - start_t,
+                                        'success': False,
+                                        'error': str(result),
+                                        'execution_mode': 'sync',
+                                        'thread_id': thread_idx
+                                    })
+                                else:
+                                    duration = time.time() - start_t
+                                    step_results.append({
+                                        'duration': result.get('duration', duration),
+                                        'success': result.get('status') != 'error',
+                                        'data': result,
+                                        'execution_mode': 'sync',
+                                        'thread_id': thread_idx
+                                    })
+                        else:
+                            # Single thread execution
+                            start_t = time.time()
+                            result = await client.execute(
+                                code=code,
+                                context={**context, 'action': action, 'step_config': step},
+                                tags={**tags, 'step': step_name, 'iteration': str(j)},
+                                timeout=timeout
+                            )
+                            duration = time.time() - start_t
+                            step_results.append({
+                                'duration': result.get('duration', duration),
+                                'success': result.get('status') != 'error',
+                                'data': result,
+                                'execution_mode': 'sync'
+                            })
             
             except Exception as e:
                 logger.error(f"Agent execution failed for {step_name}: {e}")
@@ -915,11 +954,36 @@ except Exception as e:
         else:
             # LOCAL EXECUTION
             if action == 'api_call':
+                # Support concurrent threads for API calls
+                num_threads = step.get('threads', 1)
+                from examples.run_workflow_test import execute_api_call
+                
                 for j in range(step_iterations):
-                    # Re-import locally if needed or reuse execute_api_call
-                    from examples.run_workflow_test import execute_api_call
-                    res = await execute_api_call(session, step.get('url'), step.get('method', 'GET'), step.get('body'), step.get('headers'))
-                    step_results.append(res)
+                    # Execute with concurrent threads
+                    if num_threads > 1:
+                        # Concurrent execution
+                        tasks = [
+                            execute_api_call(
+                                session,
+                                step.get('url'),
+                                step.get('method', 'GET'),
+                                step.get('body'),
+                                step.get('headers')
+                            )
+                            for _ in range(num_threads)
+                        ]
+                        thread_results = await asyncio.gather(*tasks)
+                        step_results.extend(thread_results)
+                    else:
+                        # Single thread execution
+                        res = await execute_api_call(
+                            session,
+                            step.get('url'),
+                            step.get('method', 'GET'),
+                            step.get('body'),
+                            step.get('headers')
+                        )
+                        step_results.append(res)
             
             elif action == 'k6_test':
                 k6_conf = step.get('k6_config', {})
@@ -935,16 +999,28 @@ except Exception as e:
                     jm_res = await self.unified_runner.run_jmeter_test(f"{step_name}_{workflow_iteration}_{j}", jm_conf.get('scenarios', []), jm_conf.get('thread_group_config', {}))
                     step_results.append({'duration': time.time() - start_t, 'success': jm_res['status']=='success', 'data': jm_res})
 
+        # Determine threads (vus for k6, threads for JMeter)
+        threads = 1
+        if action == 'k6_test':
+            threads = step.get('k6_config', {}).get('options', {}).get('vus', 1)
+        elif action == 'jmeter_test':
+            threads = step.get('jmeter_config', {}).get('thread_group_config', {}).get('threads', 1)
+        else:
+            threads = step.get('threads', 1)
+
         # Summarize results
         total_duration = sum((r.get('duration') or 0) for r in step_results)
         success_count = sum(1 for r in step_results if r.get('success'))
+        total_requests = len(step_results)  # Total requests = threads × iterations
         
         return {
             'name': step_name,
             'agent': agent_id or 'local',
             'iterations': step_iterations,
+            'threads': threads,
+            'total_requests': total_requests,
             'total_duration': total_duration,
-            'success_rate': success_count / step_iterations if step_iterations > 0 else 0,
+            'success_rate': success_count / total_requests if total_requests > 0 else 0,
             'iteration_results': step_results
         }
             
@@ -1031,10 +1107,15 @@ except Exception as e:
                 self.output_dir
             )
             
+            # Generate detailed report (default)
             report_name = self.reporting_config.get('report_name', 'unified_performance_report.html')
-            html_report = report_gen.generate_unified_html_report(report_name)
-            
+            html_report = report_gen.generate_unified_html_report(report_name, template="detailed")
             logger.info(f"Unified report generated: {html_report}")
+            
+            # Generate compact report
+            compact_report_name = report_name.replace('.html', '_compact.html')
+            compact_report = report_gen.generate_unified_html_report(compact_report_name, template="compact")
+            logger.info(f"Compact report generated: {compact_report}")
         
         # TODO: Generate individual tool reports if requested
         # if self.reporting_config.get('individual_reports', False):

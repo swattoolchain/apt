@@ -63,15 +63,52 @@ workflows:
         action: agent_execute
         agent: k6-server
       
-      # 3. Inline Code Execution
+      # 3. Inline Code Execution with Threads
       - name: inline_check
         action: agent_execute
         agent: jmeter-server
+        threads: 3  # NEW: 3 concurrent executions
         code: |
           import platform
           import os
-          print(f"I am running on {platform.node()} in {os.getcwd()}")
-          result = {"host": platform.node(), "status": "online"}
+          import time
+          thread_id = context.get('thread_id', 0)
+          print(f"Thread {thread_id} running on {platform.node()} in {os.getcwd()}")
+          time.sleep(0.5)  # Simulate work
+          result = {"host": platform.node(), "status": "online", "thread_id": thread_id}
+
+  # ──────────────────────────────────────────────────────────────────
+  # GROUP D: API CALL WITH THREADS (NEW FEATURE DEMO)
+  # Demonstrating concurrent API calls with threads parameter
+  # ──────────────────────────────────────────────────────────────────
+  api_load_testing: # api, load
+    iterations: 2  # Workflow runs 2 times
+    steps:
+      # 1. Single thread API call (baseline)
+      - name: baseline_api_call
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/todos/1"
+        method: GET
+        # threads: 1 (default)
+        # Total: 1 thread × 2 workflow iterations = 2 requests
+      
+      # 2. Multi-threaded API call
+      - name: concurrent_api_call
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts"
+        method: GET
+        threads: 5  # NEW: 5 concurrent requests
+        # Total: 5 threads × 2 workflow iterations = 10 requests
+      
+      # 3. High-load API call with iterations
+      - name: high_load_api_call
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/users"
+        method: GET
+        threads: 10  # 10 concurrent threads
+        iterations: 3  # Repeat 3 times
+        # Total: 10 threads × 3 iterations × 2 workflow iterations = 60 requests
+
 
   # ──────────────────────────────────────────────────────────────────
   # GROUP C: JMETER JMX DIRECT EXECUTION

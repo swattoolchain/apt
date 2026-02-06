@@ -1,0 +1,152 @@
+# Comprehensive Test - All Actions and Modes
+# Tests: api_call, agent_execute (inline/method/file), k6_test, jmeter_test
+
+test_info:
+  test_suite_name: "All Actions Report Test"
+  description: "Verify Min/Max and Individual Request Breakdown works for ALL action types"
+  version: "1.0"
+  test_suite_type: "unified"
+
+workflows:
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 1: API_CALL (Local Execution)
+  # ═══════════════════════════════════════════════════════════════
+  test_api_call:
+    steps:
+      - name: api_call_with_threads
+        action: api_call
+        url: "https://jsonplaceholder.typicode.com/posts/1"
+        method: GET
+        threads: 3
+        iterations: 2
+        # Expected: 3 threads × 2 iterations = 6 requests
+        # Should show: Min, Max, Avg, and 6 individual requests
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 2: AGENT_EXECUTE - Inline Code
+  # ═══════════════════════════════════════════════════════════════
+  test_agent_inline:
+    steps:
+      - name: agent_inline_code
+        action: agent_execute
+        agent: jmeter-server
+        threads: 2
+        iterations: 2
+        code: |
+          import time
+          import random
+          thread_id = context.get('thread_id', 0)
+          sleep_time = random.uniform(0.01, 0.05)
+          time.sleep(sleep_time)
+          result = {
+              'thread_id': thread_id,
+              'sleep_time': sleep_time,
+              'status': 'success'
+          }
+        # Expected: 2 threads × 2 iterations = 4 requests
+        # Should show: Min, Max, Avg, and 4 individual requests
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 3: AGENT_EXECUTE - Method Matching
+  # ═══════════════════════════════════════════════════════════════
+  test_agent_method:
+    steps:
+      - name: custom_validation
+        action: agent_execute
+        agent: jmeter-server
+        threads: 3
+        iterations: 1
+        context:
+          env: "test"
+        # Expected: 3 threads × 1 iteration = 3 requests
+        # Should show: Min, Max, Avg, and 3 individual requests
+        # Resolves to: def custom_validation(context) in performance_scripts.py
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 4: AGENT_EXECUTE - File Matching
+  # ═══════════════════════════════════════════════════════════════
+  test_agent_file:
+    steps:
+      - name: remote_cleanup
+        action: agent_execute
+        agent: k6-server
+        threads: 2
+        iterations: 1
+        # Expected: 2 threads × 1 iteration = 2 requests
+        # Should show: Min, Max, Avg, and 2 individual requests
+        # Resolves to: agent_scripts/remote_cleanup.py
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 5: K6_TEST - Declarative Mode
+  # ═══════════════════════════════════════════════════════════════
+  test_k6_declarative:
+    steps:
+      - name: k6_declarative_test
+        action: k6_test
+        agent: k6-server
+        iterations: 2
+        k6_config:
+          options:
+            vus: 3  # 3 virtual users (threads)
+            duration: "2s"
+          scenarios:
+            - name: "K6 Declarative Test"
+              url: "https://httpbin.org/get"
+              method: "GET"
+        # Expected: 2 iterations (k6 handles threads internally)
+        # Should show: Min, Max, Avg, and iteration results
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 6: K6_TEST - File-Based Mode
+  # ═══════════════════════════════════════════════════════════════
+  test_k6_file:
+    steps:
+      - name: k6_file_test
+        action: k6_test
+        agent: k6-server
+        iterations: 2
+        k6_script_file: "examples/scripts/my_k6_test.js"
+        # Expected: 2 iterations
+        # Should show: Min, Max, Avg, and iteration results
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 7: JMETER_TEST - Declarative Mode
+  # ═══════════════════════════════════════════════════════════════
+  test_jmeter_declarative:
+    steps:
+      - name: jmeter_declarative_test
+        action: jmeter_test
+        agent: jmeter-server
+        iterations: 2
+        jmeter_config:
+          thread_group_config:
+            threads: 3
+            ramp_time: 1
+            duration: 3
+          scenarios:
+            - name: "JMeter Declarative Test"
+              url: "https://httpbin.org/get"
+              method: "GET"
+        # Expected: 2 iterations (JMeter handles threads internally)
+        # Should show: Min, Max, Avg, and iteration results
+
+  # ═══════════════════════════════════════════════════════════════
+  # TEST 8: JMETER_TEST - JMX File Mode
+  # ═══════════════════════════════════════════════════════════════
+  test_jmeter_jmx:
+    steps:
+      - name: jmeter_jmx_test
+        action: jmeter_test
+        agent: jmeter-server
+        iterations: 2
+        jmx_file: "../jmx_files/api_test_plan.jmx"
+        # Expected: 2 iterations
+        # Should show: Min, Max, Avg, and iteration results
+
+reporting:
+  output_dir: "performance_results/all_actions_test"
+  include:
+    - workflows
+  formats:
+    - html
+    - json
