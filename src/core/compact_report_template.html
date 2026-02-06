@@ -626,9 +626,11 @@
 
     <script>
         // Parse data from script tags
+        console.log("Loading QPT Report data...");
         const workflowData = JSON.parse(document.getElementById('workflow-data-json').textContent);
         const metadata = JSON.parse(document.getElementById('metadata-json').textContent);
         const testInfo = JSON.parse(document.getElementById('test-info-json').textContent);
+        console.log("Data loaded successfully:", { workflows: workflowData.length, timestamp: metadata.timestamp });
 
         // Workflow Table
         let workflowTable;
@@ -638,24 +640,34 @@
             // Flatten workflow data for table
             const tableData = [];
 
-            workflowData.forEach(workflow => {
+            workflowData.forEach((workflow, workflowIdx) => {
+                if (!workflow || !workflow.step_breakdown) return;
+
+                const tags = (workflow.tags && Array.isArray(workflow.tags)) ? workflow.tags.join(', ') : '';
+
                 Object.entries(workflow.step_breakdown).forEach(([stepName, stepData]) => {
+                    if (!stepData) return;
+
+                    const timing = stepData.timing || {};
+                    const success = stepData.success || {};
+                    const iterConfig = stepData.iteration_config || {};
+
                     tableData.push({
-                        workflow: workflow.name,
-                        tags: workflow.tags.join(', '),
+                        workflow: workflow.name || 'Unknown',
+                        tags: tags,
                         step: stepName,
-                        agent: stepData.agent,
-                        threads: stepData.iteration_config.threads,
-                        iterations: stepData.iteration_config.display,
-                        totalRequests: stepData.iteration_config.total_requests,
-                        minTime: stepData.timing.min_duration,
-                        maxTime: stepData.timing.max_duration,
-                        avgTime: stepData.timing.avg_duration,
-                        p95: stepData.timing.p95,
-                        successRate: stepData.success.success_rate,
-                        throughput: stepData.throughput.requests_per_second,
-                        stepData: stepData,
-                        workflowData: workflow
+                        agent: stepData.agent || 'local',
+                        threads: iterConfig.threads || 0,
+                        iterations: iterConfig.display || iterConfig.total_iterations || 0,
+                        totalRequests: iterConfig.total_requests || 0,
+                        minTime: timing.min_duration || 0,
+                        maxTime: timing.max_duration || 0,
+                        avgTime: timing.avg_duration || 0,
+                        p95: timing.p95 || 0,
+                        successRate: success.success_rate || 0,
+                        throughput: (stepData.throughput && stepData.throughput.requests_per_second) ? stepData.throughput.requests_per_second : 0,
+                        workflowIdx: workflowIdx,
+                        stepName: stepName
                     });
                 });
             });
@@ -742,8 +754,11 @@
 
         // Show Request Details Modal
         function showRequestDetails(rowData) {
-            const stepData = rowData.stepData;
-            const workflowData = rowData.workflowData;
+            const workflow = workflowData[rowData.workflowIdx];
+            if (!workflow) return;
+
+            const stepData = workflow.step_breakdown[rowData.stepName];
+            if (!stepData) return;
 
             // Build metrics
             let metricsHTML = `
@@ -782,7 +797,7 @@
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Throughput</div>
-                        <div class="metric-value">${stepData.throughput.requests_per_second.toFixed(2)} req/s</div>
+                        <div class="metric-value">${(stepData.throughput && stepData.throughput.requests_per_second) ? stepData.throughput.requests_per_second.toFixed(2) : '0.00'} req/s</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Success Rate</div>
@@ -796,19 +811,23 @@
 
             // Collect all iteration results from workflow executions
             let allRequests = [];
-            if (workflowData.workflow_executions) {
-                workflowData.workflow_executions.forEach((exec, execIdx) => {
-                    exec.steps.forEach(step => {
-                        if (step.name === rowData.step) {
-                            step.iteration_results.forEach((result, reqIdx) => {
-                                allRequests.push({
-                                    iteration: execIdx + 1,
-                                    request: reqIdx + 1,
-                                    ...result
+            if (workflow.workflow_executions) {
+                workflow.workflow_executions.forEach((exec, execIdx) => {
+                    if (exec.steps) {
+                        exec.steps.forEach(step => {
+                            if (step.name === rowData.stepName && step.iteration_results) {
+                                step.iteration_results.forEach((result, reqIdx) => {
+                                    allRequests.push({
+                                        iteration: execIdx + 1,
+                                        request: reqIdx + 1,
+                                        duration: result.duration || 0,
+                                        success: result.success || false,
+                                        data: result.data || {}
+                                    });
                                 });
-                            });
-                        }
-                    });
+                            }
+                        });
+                    }
                 });
             }
 
@@ -1009,11 +1028,11 @@
                             stepName,
                             stepData.iteration_config.threads,
                             stepData.iteration_config.total_requests,
-                            stepData.timing.min_duration.toFixed(3),
-                            stepData.timing.max_duration.toFixed(3),
-                            stepData.timing.avg_duration.toFixed(3),
-                            stepData.timing.std_dev.toFixed(3),
-                            (stepData.success.success_rate * 100).toFixed(1) + '%'
+                            (stepData.timing && stepData.timing.min_duration) ? stepData.timing.min_duration.toFixed(3) : '0.000',
+                            (stepData.timing && stepData.timing.max_duration) ? stepData.timing.max_duration.toFixed(3) : '0.000',
+                            (stepData.timing && stepData.timing.avg_duration) ? stepData.timing.avg_duration.toFixed(3) : '0.000',
+                            (stepData.timing && stepData.timing.std_dev) ? stepData.timing.std_dev.toFixed(3) : '0.000',
+                            (stepData.success && stepData.success.success_rate) ? (stepData.success.success_rate * 100).toFixed(1) + '%' : '0.0%'
                         ]);
                     });
 

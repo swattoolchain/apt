@@ -1174,7 +1174,7 @@ class UnifiedReportGenerator:
                                                         </div>
                                                         <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #dbeafe;">
                                                             <div style="font-size: 10px; color: #718096;">Throughput</div>
-                                                            <div style="font-size: 14px; font-weight: 600; color: #1e40af;">{{ "%.2f"|format(step_data.throughput.requests_per_second) }} req/s</div>
+                                                            <div style="font-size: 14px; font-weight: 600; color: #1e40af;">{{ "%.2f"|format(step_data.throughput.get('requests_per_second', 0)) }} req/s</div>
                                                         </div>
                                                         <div style="background: white; padding: 8px; border-radius: 4px; border: 1px solid #fee2e2;">
                                                             <div style="font-size: 10px; color: #718096;">Success Rate</div>
