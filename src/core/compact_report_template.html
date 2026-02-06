@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QPT Performance Report - Compact View</title>
+
+    <!-- Tabulator CSS -->
+    <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e3a8a;
+            color: #1a202c;
+            line-height: 1.5;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Header with Logo */
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            padding: 16px 32px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .header-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .header-title .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Container - Fit to content */
+        .container {
+            margin: 0;
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+        }
+
+        /* Dashboard Cards */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .card {
+            padding: 20px 24px;
+            border-right: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .card:last-child {
+            border-right: none;
+        }
+
+        .card-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .card-value.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Controls Bar */
+        .controls-bar {
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .controls-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-box {
+            padding: 8px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            width: 300px;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .select-box {
+            padding: 8px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
+        }
+
+        .btn-success {
+            background: #334155;
+            color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-success:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #475569;
+            color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-danger:hover {
+            background: #334155;
+            transform: translateY(-1px);
+        }
+
+        /* Table Container - Fit to content */
+        .table-container {
+            padding: 0;
+        }
+
+        /* Tabulator Customization */
+        .tabulator {
+            font-size: 13px;
+            border: none;
+            background: white;
+        }
+
+        .tabulator-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border: none;
+        }
+
+        .tabulator-col {
+            background: transparent;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tabulator-col-title {
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tabulator-row {
+            min-height: 40px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .tabulator-row:hover {
+            background: #f8fafc !important;
+        }
+
+        .tabulator-row.tabulator-group {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            font-weight: 700;
+            color: #1e40af;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .tabulator-footer {
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+            padding: 12px;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+        }
+
+        .status-warning {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s;
+        }
+
+        .modal-header {
+            padding: 20px 28px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .modal-close {
+            background: white;
+            border: 2px solid #e2e8f0;
+            font-size: 20px;
+            color: #64748b;
+            cursor: pointer;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 700;
+        }
+
+        .modal-close:hover {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+
+        .modal-body {
+            padding: 28px;
+            overflow-y: auto;
+            max-height: calc(90vh - 160px);
+        }
+
+        .modal-footer {
+            padding: 16px 28px;
+            border-top: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #f8fafc;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+            padding: 16px;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .metric-value.success {
+            color: #059669;
+        }
+
+        .metric-value.error {
+            color: #dc2626;
+        }
+
+        /* Request Table */
+        .request-table-container {
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .request-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .request-table thead {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .request-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 700;
+            color: white;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .request-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .request-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .request-table tr.failed {
+            background: #fef2f2;
+        }
+
+        .request-table tr.failed:hover {
+            background: #fee2e2;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Utility Classes */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-success {
+            color: #059669;
+            font-weight: 700;
+        }
+
+        .text-error {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .text-warning {
+            color: #d97706;
+            font-weight: 700;
+        }
+
+        .font-mono {
+            font-family: 'Courier New', monospace;
+        }
+
+        .font-bold {
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header with Logo -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo"><img src="https://qa.hub.quvia.ai/assets/images/neuron_logo.svg" alt="Neuron Logo"></div>
+            <div class="header-title">
+                <h1>{{ test_info.test_suite_name }}</h1>
+                <div class="subtitle">{{ test_info.description }} • {{ metadata.timestamp }}</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-success" onclick="exportToExcel()">📊 Export Excel</button>
+            <button class="btn btn-danger" onclick="exportToPDF()">📄 Export PDF</button>
+        </div>
+    </div>
+
+    <!-- Container -->
+    <div class="container">
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <div class="card">
+                <div class="card-label">Total Workflows</div>
+                <div class="card-value">{{ workflows|length }}</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Total Duration</div>
+                <div class="card-value">{{ "%.2f"|format(metadata.total_duration) }}s</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Success Rate</div>
+                <div class="card-value success">{{ "%.1f"|format(metadata.success_rate * 100) }}%</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Total Requests</div>
+                <div class="card-value">{{ metadata.total_requests|default(0) }}</div>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="controls-bar">
+            <div class="controls-left">
+                <input type="text" id="workflow-search" class="search-box"
+                    placeholder="🔍 Search workflows, steps, agents...">
+                <select id="group-by" class="select-box">
+                    <option value="">📋 No Grouping</option>
+                    <option value="workflow">📊 Group by Workflow</option>
+                    <option value="agent">🖥️ Group by Agent</option>
+                </select>
+            </div>
+            <div class="controls-right">
+                <button class="btn btn-primary" onclick="workflowTable.clearFilter()">🔄 Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+            <div id="workflow-table"></div>
+        </div>
+    </div>
+
+    <!-- Modal for Individual Requests -->
+    <div id="request-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Request Details</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabulator JS -->
+    <script src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- jsPDF for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Data from Jinja2 -->
+    <script id="workflow-data-json" type="application/json">{{ workflows_json| safe }}</script>
+    <script id="metadata-json" type="application/json">{{ metadata| tojson | safe }}</script>
+    <script id="test-info-json" type="application/json">{{ test_info| tojson | safe }}</script>
+
+    <script>
+        // Parse data from script tags
+        const workflowData = JSON.parse(document.getElementById('workflow-data-json').textContent);
+        const metadata = JSON.parse(document.getElementById('metadata-json').textContent);
+        const testInfo = JSON.parse(document.getElementById('test-info-json').textContent);
+
+        // Workflow Table
+        let workflowTable;
+        let currentTableData = [];
+
+        function initWorkflowTable() {
+            // Flatten workflow data for table
+            const tableData = [];
+
+            workflowData.forEach(workflow => {
+                Object.entries(workflow.step_breakdown).forEach(([stepName, stepData]) => {
+                    tableData.push({
+                        workflow: workflow.name,
+                        tags: workflow.tags.join(', '),
+                        step: stepName,
+                        agent: stepData.agent,
+                        threads: stepData.iteration_config.threads,
+                        iterations: stepData.iteration_config.display,
+                        totalRequests: stepData.iteration_config.total_requests,
+                        minTime: stepData.timing.min_duration,
+                        maxTime: stepData.timing.max_duration,
+                        avgTime: stepData.timing.avg_duration,
+                        p95: stepData.timing.p95,
+                        successRate: stepData.success.success_rate,
+                        throughput: stepData.throughput.requests_per_second,
+                        stepData: stepData,
+                        workflowData: workflow
+                    });
+                });
+            });
+
+            currentTableData = tableData;
+
+            workflowTable = new Tabulator("#workflow-table", {
+                data: tableData,
+                layout: "fitColumns",
+                height: "calc(100vh - 320px)",
+                pagination: false,
+                groupBy: "",
+                groupHeader: function (value, count, data, group) {
+                    return "<strong>" + value + "</strong> <span style='color:#64748b; font-weight:normal;'>(" + count + " steps)</span>";
+                },
+                columns: [
+                    { title: "Workflow", field: "workflow", width: 200, headerFilter: false, frozen: true },
+                    { title: "Step", field: "step", width: 200, headerFilter: false },
+                    { title: "Agent", field: "agent", width: 120, headerFilter: false },
+                    { title: "Threads", field: "threads", width: 90, hozAlign: "center" },
+                    { title: "Loops", field: "iterations", width: 90, hozAlign: "center" },
+                    { title: "Requests", field: "totalRequests", width: 100, hozAlign: "center", formatter: "money", formatterParams: { precision: 0 } },
+                    {
+                        title: "Min (s)",
+                        field: "minTime",
+                        width: 100,
+                        hozAlign: "right",
+                        formatter: function (cell) {
+                            return '<span class="text-success">' + cell.getValue().toFixed(3) + '</span>';
+                        }
+                    },
+                    {
+                        title: "Max (s)",
+                        field: "maxTime",
+                        width: 100,
+                        hozAlign: "right",
+                        formatter: function (cell) {
+                            return '<span class="text-error">' + cell.getValue().toFixed(3) + '</span>';
+                        }
+                    },
+                    { title: "Avg (s)", field: "avgTime", width: 100, hozAlign: "right", formatter: function (cell) { return cell.getValue().toFixed(3); } },
+                    { title: "P95 (s)", field: "p95", width: 100, hozAlign: "right", formatter: function (cell) { return cell.getValue().toFixed(3); } },
+                    {
+                        title: "Success",
+                        field: "successRate",
+                        width: 110,
+                        hozAlign: "center",
+                        formatter: function (cell) {
+                            const value = cell.getValue();
+                            const className = value >= 0.95 ? 'status-success' : (value >= 0.80 ? 'status-warning' : 'status-error');
+                            return '<span class="status-badge ' + className + '">' + (value * 100).toFixed(1) + '%</span>';
+                        }
+                    },
+                    { title: "Req/s", field: "throughput", width: 100, hozAlign: "right", formatter: function (cell) { return cell.getValue().toFixed(2); } },
+                    {
+                        title: "Details",
+                        width: 110,
+                        hozAlign: "center",
+                        formatter: function () {
+                            return '<button class="btn btn-primary" style="padding: 6px 14px; font-size: 11px;">📋 View</button>';
+                        },
+                        cellClick: function (e, cell) {
+                            showRequestDetails(cell.getRow().getData());
+                        }
+                    }
+                ],
+            });
+
+            // Search
+            document.getElementById("workflow-search").addEventListener("keyup", function () {
+                workflowTable.setFilter([
+                    { field: "workflow", type: "like", value: this.value },
+                    { field: "step", type: "like", value: this.value },
+                    { field: "agent", type: "like", value: this.value }
+                ], "or");
+            });
+
+            // Grouping
+            document.getElementById("group-by").addEventListener("change", function () {
+                const value = this.value;
+                workflowTable.setGroupBy(value || "");
+            });
+        }
+
+        // Show Request Details Modal
+        function showRequestDetails(rowData) {
+            const stepData = rowData.stepData;
+            const workflowData = rowData.workflowData;
+
+            // Build metrics
+            let metricsHTML = `
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Iterations</div>
+                        <div class="metric-value">${stepData.iteration_config.total_iterations}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Min Time</div>
+                        <div class="metric-value success">${stepData.timing.min_duration.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Max Time</div>
+                        <div class="metric-value error">${stepData.timing.max_duration.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Avg Time</div>
+                        <div class="metric-value">${stepData.timing.avg_duration.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Median</div>
+                        <div class="metric-value">${stepData.timing.median_duration.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">P95</div>
+                        <div class="metric-value">${stepData.timing.p95.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">P99</div>
+                        <div class="metric-value">${stepData.timing.p99.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Std Dev</div>
+                        <div class="metric-value">${stepData.timing.std_dev.toFixed(3)}s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Throughput</div>
+                        <div class="metric-value">${stepData.throughput.requests_per_second.toFixed(2)} req/s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Success Rate</div>
+                        <div class="metric-value ${stepData.success.success_rate >= 0.95 ? 'success' : 'error'}">${stepData.success.success_percentage}</div>
+                    </div>
+                </div>
+            `;
+
+            // Build individual requests table
+            let requestsHTML = '<h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 700; color: #1e293b;">Individual Request Results</h3>';
+
+            // Collect all iteration results from workflow executions
+            let allRequests = [];
+            if (workflowData.workflow_executions) {
+                workflowData.workflow_executions.forEach((exec, execIdx) => {
+                    exec.steps.forEach(step => {
+                        if (step.name === rowData.step) {
+                            step.iteration_results.forEach((result, reqIdx) => {
+                                allRequests.push({
+                                    iteration: execIdx + 1,
+                                    request: reqIdx + 1,
+                                    ...result
+                                });
+                            });
+                        }
+                    });
+                });
+            }
+
+            if (allRequests.length > 0) {
+                requestsHTML += `
+                    <div class="request-table-container" style="max-height: 450px; overflow-y: auto;">
+                        <table class="request-table">
+                            <thead>
+                                <tr>
+                                    <th>Iteration</th>
+                                    <th>#</th>
+                                    <th style="text-align: right;">Duration</th>
+                                    <th style="text-align: center;">Status</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                allRequests.forEach((req, idx) => {
+                    const statusIcon = req.success ? '<span class="text-success">✓</span>' : '<span class="text-error">✗</span>';
+                    const rowClass = req.success ? '' : 'failed';
+                    const details = req.data?.status_code ? `HTTP ${req.data.status_code}` : (req.data?.status || '—');
+
+                    requestsHTML += `
+                        <tr class="${rowClass}">
+                            <td class="font-bold">Iteration ${req.iteration}</td>
+                            <td class="font-mono">${req.request}</td>
+                            <td class="font-mono text-right">${req.duration.toFixed(3)}s</td>
+                            <td class="text-center">${statusIcon}</td>
+                            <td style="font-size: 11px; color: #64748b;">${details}</td>
+                        </tr>
+                    `;
+                });
+
+                requestsHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                requestsHTML += '<p style="color: #64748b; font-size: 13px;">No individual request data available.</p>';
+            }
+
+            document.getElementById('modal-title').textContent = `${rowData.workflow} → ${rowData.step}`;
+            document.getElementById('modal-body').innerHTML = metricsHTML + requestsHTML;
+            document.getElementById('request-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('request-modal').classList.remove('active');
+        }
+
+        // Export to Excel with Multiple Sheets
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+
+            // Sheet 1: Summary
+            const summaryData = currentTableData.map(row => ({
+                'Workflow': row.workflow,
+                'Step': row.step,
+                'Agent': row.agent,
+                'Threads': row.threads,
+                'Loops': row.iterations,
+                'Total Requests': row.totalRequests,
+                'Min Time (s)': row.minTime.toFixed(3),
+                'Max Time (s)': row.maxTime.toFixed(3),
+                'Avg Time (s)': row.avgTime.toFixed(3),
+                'P95 (s)': row.p95.toFixed(3),
+                'Success Rate': (row.successRate * 100).toFixed(1) + '%',
+                'Throughput (req/s)': row.throughput.toFixed(2)
+            }));
+
+            const ws1 = XLSX.utils.json_to_sheet(summaryData);
+
+            // Set column widths
+            ws1['!cols'] = [
+                { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 10 },
+                { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+                { wch: 15 }, { wch: 18 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws1, "Summary");
+
+            // Sheet 2: Individual Requests
+            const individualData = [];
+            workflowData.forEach(workflow => {
+                if (workflow.workflow_executions) {
+                    workflow.workflow_executions.forEach((exec, execIdx) => {
+                        exec.steps.forEach(step => {
+                            step.iteration_results.forEach((result, reqIdx) => {
+                                individualData.push({
+                                    'Workflow': workflow.name,
+                                    'Step': step.name,
+                                    'Iteration': execIdx + 1,
+                                    'Request #': reqIdx + 1,
+                                    'Duration (s)': result.duration.toFixed(3),
+                                    'Status': result.success ? 'Success' : 'Failed',
+                                    'Details': result.data?.status_code ? `HTTP ${result.data.status_code}` : (result.data?.status || '—')
+                                });
+                            });
+                        });
+                    });
+                }
+            });
+
+            const ws2 = XLSX.utils.json_to_sheet(individualData);
+            ws2['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 20 }];
+            XLSX.utils.book_append_sheet(wb, ws2, "Individual Requests");
+
+            // Save file
+            XLSX.writeFile(wb, `QPT_Performance_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // Export to PDF
+        // Export to PDF with Individual Requests
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');  // Portrait for better readability
+            let currentY = 20;
+
+            // Title
+            doc.setFontSize(20);
+            doc.setTextColor(30, 64, 175);  // Professional blue
+            doc.text('QPT Performance Report', 14, currentY);
+            currentY += 7;
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139);
+            doc.text(testInfo.test_suite_name + ' • ' + metadata.timestamp, 14, currentY);
+            currentY += 10;
+
+            // Dashboard Summary
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.text('Summary', 14, currentY);
+            currentY += 7;
+
+            doc.setFontSize(9);
+            doc.text(`Total Workflows: ${workflowData.length}`, 14, currentY);
+            doc.text(`Duration: ${metadata.total_duration.toFixed(2)}s`, 70, currentY);
+            doc.text(`Success: ${(metadata.success_rate * 100).toFixed(1)}%`, 120, currentY);
+            doc.text(`Requests: ${metadata.total_requests}`, 160, currentY);
+            currentY += 10;
+
+            // Summary Table
+            const summaryTableData = currentTableData.map(row => [
+                row.workflow,
+                row.step,
+                row.threads,
+                row.totalRequests,
+                row.minTime.toFixed(3),
+                row.maxTime.toFixed(3),
+                row.avgTime.toFixed(3),
+                (row.successRate * 100).toFixed(1) + '%'
+            ]);
+
+            doc.autoTable({
+                startY: currentY,
+                head: [['Workflow', 'Step', 'Thr', 'Req', 'Min(s)', 'Max(s)', 'Avg(s)', 'Success']],
+                body: summaryTableData,
+                theme: 'grid',
+                headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },  // Professional blue
+                styles: { fontSize: 7, cellPadding: 1.5 },
+                columnStyles: {
+                    2: { halign: 'center' },
+                    3: { halign: 'center' },
+                    4: { halign: 'right', textColor: [5, 150, 105] },
+                    5: { halign: 'right', textColor: [220, 38, 38] },
+                    6: { halign: 'right' },
+                    7: { halign: 'center' }
+                }
+            });
+
+            currentY = doc.lastAutoTable.finalY + 10;
+
+            // Individual Requests - Grouped by Workflow and Step
+            doc.addPage();
+            currentY = 20;
+
+            doc.setFontSize(14);
+            doc.setTextColor(30, 64, 175);
+            doc.text('Individual Request Details', 14, currentY);
+            currentY += 10;
+
+            workflowData.forEach((workflow, wfIdx) => {
+                if (workflow.workflow_executions) {
+                    // Workflow Header
+                    doc.setFontSize(12);
+                    doc.setTextColor(30, 41, 59);
+                    doc.text(`Workflow: ${workflow.name}`, 14, currentY);
+                    currentY += 7;
+
+                    // Step Breakdown Summary Table
+                    const stepSummaryData = [];
+                    Object.entries(workflow.step_breakdown).forEach(([stepName, stepData]) => {
+                        stepSummaryData.push([
+                            stepName,
+                            stepData.iteration_config.threads,
+                            stepData.iteration_config.total_requests,
+                            stepData.timing.min_duration.toFixed(3),
+                            stepData.timing.max_duration.toFixed(3),
+                            stepData.timing.avg_duration.toFixed(3),
+                            stepData.timing.std_dev.toFixed(3),
+                            (stepData.success.success_rate * 100).toFixed(1) + '%'
+                        ]);
+                    });
+
+                    // Check if we need a new page for summary table
+                    if (currentY > 240) {
+                        doc.addPage();
+                        currentY = 20;
+                    }
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(51, 65, 85);
+                    doc.text('  Step Breakdown Summary:', 14, currentY);
+                    currentY += 5;
+
+                    doc.autoTable({
+                        startY: currentY,
+                        head: [['Step', 'Thr', 'Req', 'Min(s)', 'Max(s)', 'Avg(s)', 'StdDev', 'Success']],
+                        body: stepSummaryData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+                        styles: { fontSize: 7, cellPadding: 1.5 },
+                        columnStyles: {
+                            1: { halign: 'center' },
+                            2: { halign: 'center' },
+                            3: { halign: 'right', textColor: [5, 150, 105] },
+                            4: { halign: 'right', textColor: [220, 38, 38] },
+                            5: { halign: 'right' },
+                            6: { halign: 'right' },
+                            7: { halign: 'center' }
+                        },
+                        margin: { left: 20 }
+                    });
+
+                    currentY = doc.lastAutoTable.finalY + 8;
+
+                    // Group by step
+                    const stepGroups = {};
+                    workflow.workflow_executions.forEach((exec, execIdx) => {
+                        exec.steps.forEach(step => {
+                            if (!stepGroups[step.name]) {
+                                stepGroups[step.name] = [];
+                            }
+                            step.iteration_results.forEach((result, reqIdx) => {
+                                stepGroups[step.name].push({
+                                    iteration: execIdx + 1,
+                                    request: reqIdx + 1,
+                                    duration: result.duration,
+                                    success: result.success,
+                                    details: result.data?.status_code ? `HTTP ${result.data.status_code}` : (result.data?.status || '—')
+                                });
+                            });
+                        });
+                    });
+
+                    // Print each step's requests
+                    Object.entries(stepGroups).forEach(([stepName, requests]) => {
+                        // Check if we need a new page
+                        if (currentY > 250) {
+                            doc.addPage();
+                            currentY = 20;
+                        }
+
+                        doc.setFontSize(10);
+                        doc.setTextColor(51, 65, 85);
+                        doc.text(`  Step: ${stepName} (${requests.length} requests)`, 14, currentY);
+                        currentY += 5;
+
+                        const requestTableData = requests.map(req => [
+                            `Iteration ${req.iteration}`,
+                            req.request,
+                            req.duration.toFixed(3),
+                            req.success ? 'Success' : 'Failed',
+                            req.details
+                        ]);
+
+                        doc.autoTable({
+                            startY: currentY,
+                            head: [['Iteration', '#', 'Duration (s)', 'Status', 'Details']],
+                            body: requestTableData,
+                            theme: 'striped',
+                            headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+                            styles: { fontSize: 7, cellPadding: 1.5 },
+                            columnStyles: {
+                                1: { halign: 'center' },
+                                2: { halign: 'right' },
+                                3: { halign: 'center' }
+                            },
+                            margin: { left: 20 }
+                        });
+
+                        currentY = doc.lastAutoTable.finalY + 5;
+                    });
+
+                    currentY += 5;
+                }
+            });
+
+            // Save PDF
+            doc.save(`QPT_Performance_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', function () {
+            initWorkflowTable();
+        });
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            const modal = document.getElementById('request-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+
+</html>
